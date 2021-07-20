@@ -37,6 +37,9 @@ FDCAN_RxHeaderTypeDef RxHeader;
 uint8_t RxData[8];
 FDCAN_TxHeaderTypeDef TxHeader;
 uint8_t TxData[8];
+FDCAN_ErrorCountersTypeDef errorCounter;
+FDCAN_ProtocolStatusTypeDef protocolStatus;
+//FDCAN_protocol_error_code errorCode;
 /* USER CODE END PD */
 
 /* Private macro -------------------------------------------------------------*/
@@ -76,6 +79,7 @@ int main(void)
   /* USER CODE BEGIN 1 */
 	uint16_t AD_RES = 0;
 	uint16_t AD_RESreflow = 0;
+	int i = 0;
   /* USER CODE END 1 */
 
   /* MCU Configuration--------------------------------------------------------*/
@@ -99,6 +103,7 @@ int main(void)
   MX_ADC1_Init();
   MX_FDCAN1_Init();
   /* USER CODE BEGIN 2 */
+	HAL_Delay(1000);
 	//HAL_ADCEx_Calibration_Start(&hadc1,0);
 	FDCAN_Config();
 	
@@ -120,6 +125,8 @@ int main(void)
   /* USER CODE BEGIN WHILE */
   while (1)
   {
+		for (i=0; i<100; i++){
+		
 		TxData[0] = ubKeyNumber;
     TxData[1] = 0xAD;
 
@@ -129,7 +136,21 @@ int main(void)
 			/* Transmission request Error */
 			Error_Handler();
 		}
-		HAL_Delay(10);
+		HAL_Delay(1);
+		}
+		
+		HAL_FDCAN_GetErrorCounters(&hfdcan1, &errorCounter);
+		HAL_FDCAN_IsRestrictedOperationMode(&hfdcan1);
+		HAL_FDCAN_GetProtocolStatus(&hfdcan1, &protocolStatus);
+		if(protocolStatus.BusOff==1){
+			HAL_FDCAN_ExitRestrictedOperationMode(&hfdcan1);
+			if (HAL_FDCAN_Start(&hfdcan1) != HAL_OK)
+			{
+				Error_Handler();
+			}
+
+		}
+		
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
@@ -271,14 +292,14 @@ static void MX_FDCAN1_Init(void)
   hfdcan1.Init.Mode = FDCAN_MODE_NORMAL;
   hfdcan1.Init.AutoRetransmission = DISABLE;
   hfdcan1.Init.TransmitPause = DISABLE;
-  hfdcan1.Init.ProtocolException = DISABLE;
+  hfdcan1.Init.ProtocolException = ENABLE;
   hfdcan1.Init.NominalPrescaler = 1;
   hfdcan1.Init.NominalSyncJumpWidth = 1;
   hfdcan1.Init.NominalTimeSeg1 = 6;
-  hfdcan1.Init.NominalTimeSeg2 = 2;
+  hfdcan1.Init.NominalTimeSeg2 = 1;
   hfdcan1.Init.DataPrescaler = 1;
   hfdcan1.Init.DataSyncJumpWidth = 1;
-  hfdcan1.Init.DataTimeSeg1 = 1;
+  hfdcan1.Init.DataTimeSeg1 = 6;
   hfdcan1.Init.DataTimeSeg2 = 1;
   hfdcan1.Init.StdFiltersNbr = 0;
   hfdcan1.Init.ExtFiltersNbr = 0;
