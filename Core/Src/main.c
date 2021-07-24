@@ -135,31 +135,12 @@ int main(void)
   /* USER CODE BEGIN WHILE */
   while (1)
   {
-		for (i=0; i<5; i++){
-		
-		TxData[0] = uhADCxConvertedData[0] & 0xFF;
-    TxData[1] = (uhADCxConvertedData[0] >> 8) & 0xFF;
-
-        /* Start the Transmission process */
-    if (HAL_FDCAN_AddMessageToTxFifoQ(&hfdcan1, &TxHeader, TxData) != HAL_OK)
-		{
-			/* Transmission request Error */
-			Error_Handler();
-		}
-		HAL_Delay(1);
-		}
-		
-		HAL_FDCAN_GetErrorCounters(&hfdcan1, &errorCounter);
-		HAL_FDCAN_IsRestrictedOperationMode(&hfdcan1);
-		HAL_FDCAN_GetProtocolStatus(&hfdcan1, &protocolStatus);
-		
 		if(protocolStatus.BusOff==1){
 			HAL_FDCAN_ExitRestrictedOperationMode(&hfdcan1);
 			if (HAL_FDCAN_Start(&hfdcan1) != HAL_OK)
 			{
 				Error_Handler();
 			}
-
 		}
 		
     /* USER CODE END WHILE */
@@ -268,7 +249,7 @@ static void MX_ADC1_Init(void)
   */
   sConfig.Channel = ADC_CHANNEL_5;
   sConfig.Rank = ADC_REGULAR_RANK_1;
-  sConfig.SamplingTime = ADC_SAMPLETIME_640CYCLES_5;
+  sConfig.SamplingTime = ADC_SAMPLETIME_12CYCLES_5;
   sConfig.SingleDiff = ADC_SINGLE_ENDED;
   sConfig.OffsetNumber = ADC_OFFSET_NONE;
   sConfig.Offset = 0;
@@ -401,6 +382,31 @@ static void FDCAN_Config(void)
   }
 
   
+}
+
+void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef* hadc)
+{
+    // Conversion Complete & DMA Transfer Complete As Well
+    // So The AD_RES Is Now Updated & Let's Move IT To The PWM CCR1
+    // Update The PWM Duty Cycle With Latest ADC Conversion Result
+    TxData[0] = uhADCxConvertedData[0] & 0xFF;
+    TxData[1] = (uhADCxConvertedData[0] >> 8) & 0xFF;
+		TxData[3] = uhADCxConvertedData[1] & 0xFF;
+    TxData[4] = (uhADCxConvertedData[1] >> 8) & 0xFF;
+
+        /* Start the Transmission process */
+    if (HAL_FDCAN_AddMessageToTxFifoQ(&hfdcan1, &TxHeader, TxData) != HAL_OK)
+		{
+			/* Transmission request Error */
+			Error_Handler();
+		}
+		//HAL_Delay(1);
+		
+		
+		HAL_FDCAN_GetErrorCounters(&hfdcan1, &errorCounter);
+		HAL_FDCAN_IsRestrictedOperationMode(&hfdcan1);
+		HAL_FDCAN_GetProtocolStatus(&hfdcan1, &protocolStatus);
+		
 }
 /* USER CODE END 4 */
 
