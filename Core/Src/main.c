@@ -22,7 +22,11 @@
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
-
+/*
+TIMER 16mhz
+/160 => 100khz
+count to 1000
+*/
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -37,6 +41,7 @@ FDCAN_RxHeaderTypeDef RxHeader;
 uint8_t RxData[8];
 FDCAN_TxHeaderTypeDef TxHeader;
 uint8_t TxData[8];
+uint32_t timer;
 FDCAN_ErrorCountersTypeDef errorCounter;
 FDCAN_ProtocolStatusTypeDef protocolStatus;
 //FDCAN_protocol_error_code errorCode;
@@ -64,6 +69,8 @@ FDCAN_HandleTypeDef hfdcan1;
 
 I2C_HandleTypeDef hi2c3;
 
+TIM_HandleTypeDef htim2;
+
 /* USER CODE BEGIN PV */
 
 /* USER CODE END PV */
@@ -77,6 +84,7 @@ static void MX_FDCAN1_Init(void);
 static void MX_ADC2_Init(void);
 static void MX_ADC3_Init(void);
 static void MX_I2C3_Init(void);
+static void MX_TIM2_Init(void);
 /* USER CODE BEGIN PFP */
 void FDCAN_Config(void);
 static void ADC1_SELECT(int index, ADC_HandleTypeDef* hadc1);
@@ -123,6 +131,7 @@ int main(void)
   MX_ADC2_Init();
   MX_ADC3_Init();
   MX_I2C3_Init();
+  MX_TIM2_Init();
   /* USER CODE BEGIN 2 */
 	HAL_Delay(100);
 	//HAL_ADCEx_Calibration_Start (&hadc1,LL_ADC_SINGLE_ENDED); // AD calibration
@@ -130,6 +139,8 @@ int main(void)
 //	HAL_ADC_StartSampling(&hadc1);
 	HAL_ADC_Start_DMA(&hadc1,(uint32_t*)uhADCxConvertedData,7);
 	HAL_ADC_Start_DMA(&hadc2,(uint32_t*)uhADC2ConvertedData,3);
+	
+	HAL_TIM_Base_Start_IT(&htim2);
 	
 	FDCAN_Config();
 	
@@ -153,7 +164,7 @@ int main(void)
   {
 	
 		
-		
+		timer = __HAL_TIM_GET_COUNTER(&htim2);
 		HAL_FDCAN_GetErrorCounters(&hfdcan1, &errorCounter);
 		HAL_FDCAN_IsRestrictedOperationMode(&hfdcan1);
 		HAL_FDCAN_GetProtocolStatus(&hfdcan1, &protocolStatus);
@@ -209,8 +220,8 @@ void SystemClock_Config(void)
                               |RCC_CLOCKTYPE_PCLK1|RCC_CLOCKTYPE_PCLK2;
   RCC_ClkInitStruct.SYSCLKSource = RCC_SYSCLKSOURCE_PLLCLK;
   RCC_ClkInitStruct.AHBCLKDivider = RCC_SYSCLK_DIV1;
-  RCC_ClkInitStruct.APB1CLKDivider = RCC_HCLK_DIV8;
-  RCC_ClkInitStruct.APB2CLKDivider = RCC_HCLK_DIV8;
+  RCC_ClkInitStruct.APB1CLKDivider = RCC_HCLK_DIV16;
+  RCC_ClkInitStruct.APB2CLKDivider = RCC_HCLK_DIV16;
 
   if (HAL_RCC_ClockConfig(&RCC_ClkInitStruct, FLASH_LATENCY_3) != HAL_OK)
   {
@@ -513,7 +524,7 @@ static void MX_FDCAN1_Init(void)
   hfdcan1.Init.AutoRetransmission = DISABLE;
   hfdcan1.Init.TransmitPause = DISABLE;
   hfdcan1.Init.ProtocolException = DISABLE;
-  hfdcan1.Init.NominalPrescaler = 2;
+  hfdcan1.Init.NominalPrescaler = 1;
   hfdcan1.Init.NominalSyncJumpWidth = 1;
   hfdcan1.Init.NominalTimeSeg1 = 6;
   hfdcan1.Init.NominalTimeSeg2 = 1;
@@ -577,6 +588,51 @@ static void MX_I2C3_Init(void)
   /* USER CODE BEGIN I2C3_Init 2 */
 
   /* USER CODE END I2C3_Init 2 */
+
+}
+
+/**
+  * @brief TIM2 Initialization Function
+  * @param None
+  * @retval None
+  */
+static void MX_TIM2_Init(void)
+{
+
+  /* USER CODE BEGIN TIM2_Init 0 */
+
+  /* USER CODE END TIM2_Init 0 */
+
+  TIM_ClockConfigTypeDef sClockSourceConfig = {0};
+  TIM_MasterConfigTypeDef sMasterConfig = {0};
+
+  /* USER CODE BEGIN TIM2_Init 1 */
+
+  /* USER CODE END TIM2_Init 1 */
+  htim2.Instance = TIM2;
+  htim2.Init.Prescaler = 160;
+  htim2.Init.CounterMode = TIM_COUNTERMODE_UP;
+  htim2.Init.Period = 1000;
+  htim2.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
+  htim2.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
+  if (HAL_TIM_Base_Init(&htim2) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  sClockSourceConfig.ClockSource = TIM_CLOCKSOURCE_INTERNAL;
+  if (HAL_TIM_ConfigClockSource(&htim2, &sClockSourceConfig) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  sMasterConfig.MasterOutputTrigger = TIM_TRGO_RESET;
+  sMasterConfig.MasterSlaveMode = TIM_MASTERSLAVEMODE_DISABLE;
+  if (HAL_TIMEx_MasterConfigSynchronization(&htim2, &sMasterConfig) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /* USER CODE BEGIN TIM2_Init 2 */
+
+  /* USER CODE END TIM2_Init 2 */
 
 }
 
@@ -706,9 +762,15 @@ void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef* hadc)
 {
     // Conversion Complete & DMA Transfer Complete As Well
     // So The AD_RES Is Now Updated & Let's Move IT To The PWM CCR1
-    // Update The PWM Duty Cycle With Latest ADC Conversion Result
+    
+		//HAL_ADC_Start_DMA(&hadc1,uhADCxConvertedData,10);
+}
+
+// Callback: timer has rolled over
+void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
+{
     TxData[0] = uhADCxConvertedData[6] & 0xFF;
-    TxData[1] = (uhADCxConvertedData[6] >> 8) & 0xFF;
+    TxData[1] = ((uhADCxConvertedData[6] >> 8) & 0xFF );
 	/*	TxData[3] = uhADCxConvertedData[1] & 0xFF;
     TxData[4] = (uhADCxConvertedData[1] >> 8) & 0xFF;
 		uhADCxConvertedData_Voltage_mVolt=uhADCxConvertedData[3];
@@ -718,20 +780,19 @@ void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef* hadc)
 	uhADCxConvertedData_Voltage_mVolt=uhADCxConvertedData[7];
  	uhADCxConvertedData_Voltage_mVolt=uhADCxConvertedData[8];
 	uhADCxConvertedData_Voltage_mVolt=uhADCxConvertedData[9];
+	
 */
+		TxData[6] = uhADC2ConvertedData[2] & 0xFF;
+    TxData[7] = ((uhADC2ConvertedData[2] >> 8) & 0xFF );
         /* Start the Transmission process */
     if (HAL_FDCAN_AddMessageToTxFifoQ(&hfdcan1, &TxHeader, TxData) != HAL_OK)
 		{
 			/* Transmission request Error */
 			Error_Handler();
-		}
-		//HAL_Delay(1);
-		
-		
+		}	
 		HAL_FDCAN_GetErrorCounters(&hfdcan1, &errorCounter);
 		HAL_FDCAN_IsRestrictedOperationMode(&hfdcan1);
 		HAL_FDCAN_GetProtocolStatus(&hfdcan1, &protocolStatus);
-		//HAL_ADC_Start_DMA(&hadc1,uhADCxConvertedData,10);
 }
 
 static void ADC1_SELECT(int index, ADC_HandleTypeDef* hadc1)
