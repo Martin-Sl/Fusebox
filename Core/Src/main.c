@@ -36,6 +36,12 @@ count to 1000
 
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
+#define ADC1NUMConversions 7
+#define ADC2NUMConversions 3
+#define ADC3NUMConversions 2
+
+uint16_t 	 lastConversionResults[12];
+
 uint8_t ubKeyNumber = 0x0;
 FDCAN_RxHeaderTypeDef RxHeader;
 uint8_t RxData[8];
@@ -44,10 +50,9 @@ uint8_t TxData[8];
 uint32_t timer;
 FDCAN_ErrorCountersTypeDef errorCounter;
 FDCAN_ProtocolStatusTypeDef protocolStatus;
-//FDCAN_protocol_error_code errorCode;
-/* Variables for ADC conversion data */
-uint16_t   uhADCxConvertedData[12]; /* ADC group regular conversion data */
+uint16_t   uhADCxConvertedData[7]; /* ADC group regular conversion data */
 uint16_t 	 uhADC2ConvertedData[3];
+uint16_t 	 uhADC3ConvertedData[2];
 
 /* Variables for ADC conversion data computation to physical values */
 uint16_t   uhADCxConvertedData_Voltage_mVolt = 0;  /* Value of voltage calculated from ADC conversion data (unit: mV) */
@@ -87,7 +92,7 @@ static void MX_I2C3_Init(void);
 static void MX_TIM2_Init(void);
 /* USER CODE BEGIN PFP */
 void FDCAN_Config(void);
-static void ADC1_SELECT(int index, ADC_HandleTypeDef* hadc1);
+//static void ADC1_SELECT(int index, ADC_HandleTypeDef* hadc1);
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
@@ -143,43 +148,12 @@ int main(void)
 	HAL_TIM_Base_Start_IT(&htim2);
 	
 	FDCAN_Config();
-	
-	
-	/* Prepare Tx Header */
-  TxHeader.Identifier = 0x100;
-  TxHeader.IdType = FDCAN_STANDARD_ID;
-  TxHeader.TxFrameType = FDCAN_DATA_FRAME;
-  TxHeader.DataLength = FDCAN_DLC_BYTES_8;
-  TxHeader.ErrorStateIndicator = FDCAN_ESI_ACTIVE;
-  TxHeader.BitRateSwitch = FDCAN_BRS_OFF;
-  TxHeader.FDFormat = FDCAN_CLASSIC_CAN;
-  TxHeader.TxEventFifoControl = FDCAN_NO_TX_EVENTS;
-  TxHeader.MessageMarker = 0;
-	
-  /* USER CODE END 2 */
-
-  /* Infinite loop */
-  /* USER CODE BEGIN WHILE */
   while (1)
   {
 	
 		
-		timer = __HAL_TIM_GET_COUNTER(&htim2);
-		HAL_FDCAN_GetErrorCounters(&hfdcan1, &errorCounter);
-		HAL_FDCAN_IsRestrictedOperationMode(&hfdcan1);
-		HAL_FDCAN_GetProtocolStatus(&hfdcan1, &protocolStatus);
 		
-		if(protocolStatus.BusOff==1){
-			HAL_FDCAN_ExitRestrictedOperationMode(&hfdcan1);
-			if (HAL_FDCAN_Start(&hfdcan1) != HAL_OK)
-			{
-				Error_Handler();
-			}
-		}
-		
-    /* USER CODE END WHILE */
 
-    /* USER CODE BEGIN 3 */
   }
   /* USER CODE END 3 */
 }
@@ -758,9 +732,27 @@ static void FDCAN_Config(void)
   
 }
 
+int i = 0;
 void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef* hadc)
 {
-    // Conversion Complete & DMA Transfer Complete As Well
+		
+		if(hadc == &hadc1){
+			for(i=0; i<ADC1NUMConversions; i++){
+				lastConversionResults[i]=uhADCxConvertedData[i];
+			}
+		}
+		else if(hadc == &hadc2){
+			for(i=0; i<ADC2NUMConversions; i++){
+				lastConversionResults[i+ADC1NUMConversions]=uhADC2ConvertedData[i];
+			}
+		}
+		else if(hadc == &hadc3){
+			for(i=0; i<ADC3NUMConversions; i++){
+				lastConversionResults[i+ADC2NUMConversions+ADC1NUMConversions]=uhADC3ConvertedData[i];
+			}
+		}
+	
+		// Conversion Complete & DMA Transfer Complete As Well
     // So The AD_RES Is Now Updated & Let's Move IT To The PWM CCR1
     
 		//HAL_ADC_Start_DMA(&hadc1,uhADCxConvertedData,10);
@@ -769,145 +761,97 @@ void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef* hadc)
 // Callback: timer has rolled over
 void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 {
-    TxData[0] = uhADCxConvertedData[6] & 0xFF;
-    TxData[1] = ((uhADCxConvertedData[6] >> 8) & 0xFF );
-	/*	TxData[3] = uhADCxConvertedData[1] & 0xFF;
-    TxData[4] = (uhADCxConvertedData[1] >> 8) & 0xFF;
-		uhADCxConvertedData_Voltage_mVolt=uhADCxConvertedData[3];
-	uhADCxConvertedData_Voltage_mVolt=uhADCxConvertedData[4];
-	uhADCxConvertedData_Voltage_mVolt=uhADCxConvertedData[5];
-	uhADCxConvertedData_Voltage_mVolt=uhADCxConvertedData[6];
-	uhADCxConvertedData_Voltage_mVolt=uhADCxConvertedData[7];
- 	uhADCxConvertedData_Voltage_mVolt=uhADCxConvertedData[8];
-	uhADCxConvertedData_Voltage_mVolt=uhADCxConvertedData[9];
+		/* Prepare Tx Header */
+		TxHeader.Identifier = 0x101;
+		TxHeader.IdType = FDCAN_STANDARD_ID;
+		TxHeader.TxFrameType = FDCAN_DATA_FRAME;
+		TxHeader.DataLength = FDCAN_DLC_BYTES_8;
+		TxHeader.ErrorStateIndicator = FDCAN_ESI_ACTIVE;
+		TxHeader.BitRateSwitch = FDCAN_BRS_OFF;
+		TxHeader.FDFormat = FDCAN_CLASSIC_CAN;
+		TxHeader.TxEventFifoControl = FDCAN_NO_TX_EVENTS;
+		TxHeader.MessageMarker = 0;
 	
-*/
-		TxData[6] = uhADC2ConvertedData[2] & 0xFF;
-    TxData[7] = ((uhADC2ConvertedData[2] >> 8) & 0xFF );
+    TxData[0] = lastConversionResults[0] & 0xFF;
+    TxData[1] = ((lastConversionResults[0] >> 8) & 0xFF ) | ((lastConversionResults[1] & 0xF )<<4);
+		TxData[2] = (lastConversionResults[1]>> 4);
+		TxData[3] = lastConversionResults[2] & 0xFF;
+    TxData[4] = ((lastConversionResults[2] >> 8) & 0xFF ) | ((lastConversionResults[3] & 0xF )<<4);
+		TxData[5] = (lastConversionResults[3]>> 4);
+		TxData[6] = lastConversionResults[4] & 0xFF;
+    TxData[7] = ((lastConversionResults[4] >> 8) & 0xFF );
         /* Start the Transmission process */
     if (HAL_FDCAN_AddMessageToTxFifoQ(&hfdcan1, &TxHeader, TxData) != HAL_OK)
 		{
 			/* Transmission request Error */
 			Error_Handler();
 		}	
+		
+		TxHeader.Identifier = 0x102;
+		TxHeader.IdType = FDCAN_STANDARD_ID;
+		TxHeader.TxFrameType = FDCAN_DATA_FRAME;
+		TxHeader.DataLength = FDCAN_DLC_BYTES_8;
+		TxHeader.ErrorStateIndicator = FDCAN_ESI_ACTIVE;
+		TxHeader.BitRateSwitch = FDCAN_BRS_OFF;
+		TxHeader.FDFormat = FDCAN_CLASSIC_CAN;
+		TxHeader.TxEventFifoControl = FDCAN_NO_TX_EVENTS;
+		TxHeader.MessageMarker = 0;
+	
+    TxData[0] = lastConversionResults[5] & 0xFF;
+    TxData[1] = ((lastConversionResults[5] >> 8) & 0xFF ) | ((lastConversionResults[6] & 0xF )<<4);
+		TxData[2] = (lastConversionResults[6]>> 4);
+		TxData[3] = lastConversionResults[7] & 0xFF;
+    TxData[4] = ((lastConversionResults[7] >> 8) & 0xFF ) | ((lastConversionResults[8] & 0xF )<<4);
+		TxData[5] = (lastConversionResults[8]>> 4);
+		TxData[6] = lastConversionResults[9] & 0xFF;
+    TxData[7] = ((lastConversionResults[9] >> 8) & 0xFF );
+        /* Start the Transmission process */
+    if (HAL_FDCAN_AddMessageToTxFifoQ(&hfdcan1, &TxHeader, TxData) != HAL_OK)
+		{
+			/* Transmission request Error */
+			Error_Handler();
+		}	
+		
+		TxHeader.Identifier = 0x103;
+		TxHeader.IdType = FDCAN_STANDARD_ID;
+		TxHeader.TxFrameType = FDCAN_DATA_FRAME;
+		TxHeader.DataLength = FDCAN_DLC_BYTES_8;
+		TxHeader.ErrorStateIndicator = FDCAN_ESI_ACTIVE;
+		TxHeader.BitRateSwitch = FDCAN_BRS_OFF;
+		TxHeader.FDFormat = FDCAN_CLASSIC_CAN;
+		TxHeader.TxEventFifoControl = FDCAN_NO_TX_EVENTS;
+		TxHeader.MessageMarker = 0;
+	
+    TxData[0] = lastConversionResults[10] & 0xFF;
+    TxData[1] = ((lastConversionResults[10] >> 8) & 0xFF ) | ((lastConversionResults[11] & 0xF )<<4);
+		TxData[2] = (lastConversionResults[11]>> 4);
+
+        /* Start the Transmission process */
+    if (HAL_FDCAN_AddMessageToTxFifoQ(&hfdcan1, &TxHeader, TxData) != HAL_OK)
+		{
+			/* Transmission request Error */
+			Error_Handler();
+		}	
+		
+		
+		
+
+		
+		
 		HAL_FDCAN_GetErrorCounters(&hfdcan1, &errorCounter);
 		HAL_FDCAN_IsRestrictedOperationMode(&hfdcan1);
 		HAL_FDCAN_GetProtocolStatus(&hfdcan1, &protocolStatus);
-}
-
-static void ADC1_SELECT(int index, ADC_HandleTypeDef* hadc1)
-{
-
-  /* USER CODE BEGIN ADC1_Init 0 */
-
-  /* USER CODE END ADC1_Init 0 */
-
-  ADC_ChannelConfTypeDef sConfig = {0};
-
-  /* USER CODE BEGIN ADC1_Init 1 */
-
-  /* USER CODE END ADC1_Init 1 */
-  /** Common config
-  */
-  /** Configure the ADC multi-mode
-  */
-  /** Configure Regular Channel
-  */
-	switch (index){
-		case 0:{
-			sConfig.Channel = ADC_CHANNEL_6;
-  sConfig.Rank = ADC_REGULAR_RANK_1;
-  sConfig.SamplingTime = ADC_SAMPLETIME_6CYCLES_5;
-  sConfig.SingleDiff = ADC_SINGLE_ENDED;
-  sConfig.OffsetNumber = ADC_OFFSET_NONE;
-  sConfig.Offset = 0;
-  if (HAL_ADC_ConfigChannel(hadc1, &sConfig) != HAL_OK)
-  {
-    Error_Handler();
-  }
-			break;
-		}
-		case 1:{
-			sConfig.Channel = ADC_CHANNEL_7;
-  sConfig.Rank = ADC_REGULAR_RANK_1;
-			sConfig.SamplingTime = ADC_SAMPLETIME_6CYCLES_5;
-  sConfig.SingleDiff = ADC_SINGLE_ENDED;
-  sConfig.OffsetNumber = ADC_OFFSET_NONE;
-  sConfig.Offset = 0;
-  if (HAL_ADC_ConfigChannel(hadc1, &sConfig) != HAL_OK)
-  {
-    Error_Handler();
-  }
-			break;
-		}
-		case 2:{
-			sConfig.Channel = ADC_CHANNEL_8;
-			sConfig.Rank = ADC_REGULAR_RANK_1;
-			sConfig.SamplingTime = ADC_SAMPLETIME_6CYCLES_5;
-  sConfig.SingleDiff = ADC_SINGLE_ENDED;
-  sConfig.OffsetNumber = ADC_OFFSET_NONE;
-  sConfig.Offset = 0;
-  if (HAL_ADC_ConfigChannel(hadc1, &sConfig) != HAL_OK)
-  {
-    Error_Handler();
-  }
 		
-			break;
+		if(protocolStatus.BusOff==1){
+			HAL_FDCAN_ExitRestrictedOperationMode(&hfdcan1);
+			if (HAL_FDCAN_Start(&hfdcan1) != HAL_OK)
+			{
+				Error_Handler();
+			}
 		}
-		case 3:{
-			sConfig.Channel = ADC_CHANNEL_9;
-		sConfig.Rank = ADC_REGULAR_RANK_1;
-			sConfig.SamplingTime = ADC_SAMPLETIME_6CYCLES_5;
-  sConfig.SingleDiff = ADC_SINGLE_ENDED;
-  sConfig.OffsetNumber = ADC_OFFSET_NONE;
-  sConfig.Offset = 0;
-  if (HAL_ADC_ConfigChannel(hadc1, &sConfig) != HAL_OK)
-  {
-    Error_Handler();
-  }
-			break;
-		}
-		case 4:{
-		 sConfig.Channel = ADC_CHANNEL_3;
-			sConfig.SamplingTime = ADC_SAMPLETIME_6CYCLES_5;
-  sConfig.SingleDiff = ADC_SINGLE_ENDED;
-  sConfig.OffsetNumber = ADC_OFFSET_NONE;
-  sConfig.Offset = 0;
-  if (HAL_ADC_ConfigChannel(hadc1, &sConfig) != HAL_OK)
-  {
-    Error_Handler();
-  }
-			break;
-		}
-		case 5:{
-			sConfig.Channel = ADC_CHANNEL_4;
-		sConfig.Rank = ADC_REGULAR_RANK_1;
-			sConfig.SamplingTime = ADC_SAMPLETIME_6CYCLES_5;
-  sConfig.SingleDiff = ADC_SINGLE_ENDED;
-  sConfig.OffsetNumber = ADC_OFFSET_NONE;
-  sConfig.Offset = 0;
-  if (HAL_ADC_ConfigChannel(hadc1, &sConfig) != HAL_OK)
-  {
-    Error_Handler();
-  }
-			break;
-		}
-		case 6:{
-				sConfig.Channel = ADC_CHANNEL_5;
-		sConfig.Rank = ADC_REGULAR_RANK_1;
-			sConfig.SamplingTime = ADC_SAMPLETIME_6CYCLES_5;
-  sConfig.SingleDiff = ADC_SINGLE_ENDED;
-  sConfig.OffsetNumber = ADC_OFFSET_NONE;
-  sConfig.Offset = 0;
-  if (HAL_ADC_ConfigChannel(hadc1, &sConfig) != HAL_OK)
-  {
-    Error_Handler();
-  }
-			break;
-		}
-	}
-
 }
+
+
 /* USER CODE END 4 */
 
 /**
