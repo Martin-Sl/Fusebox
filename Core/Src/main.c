@@ -128,7 +128,7 @@ int main(void)
 	//HAL_ADCEx_Calibration_Start (&hadc1,LL_ADC_SINGLE_ENDED); // AD calibration
 	
 //	HAL_ADC_StartSampling(&hadc1);
-	//HAL_ADC_Start_DMA(&hadc1,(uint32_t*)uhADCxConvertedData,1);
+	HAL_ADC_Start_DMA(&hadc1,(uint32_t*)uhADCxConvertedData,7);
 	HAL_ADC_Start_DMA(&hadc2,(uint32_t*)uhADC2ConvertedData,3);
 	
 	FDCAN_Config();
@@ -152,44 +152,6 @@ int main(void)
   while (1)
   {
 	
-		/*for (i =0; i<7; i++){
-			HAL_Delay(1);
-		ADC1_SELECT(i,&hadc1);
-			HAL_Delay(2);
-		HAL_ADC_Start(&hadc1);
-			HAL_Delay(2);
-		HAL_ADC_PollForConversion(&hadc1,100);
-			HAL_Delay(1);
-		uhADCxConvertedData[i] = HAL_ADC_GetValue(&hadc1);
-			HAL_Delay(1);
-		}
-*/
-	//	HAL_Delay(1);
-		HAL_ADC_Start(&hadc1);
-		//HAL_Delay(1);
-		HAL_ADC_PollForConversion(&hadc1,100);
-		HAL_Delay(1);
-		uhADCxConvertedData[6] = HAL_ADC_GetValue(&hadc1);
-		//HAL_Delay(1);
-		TxData[0] = uhADCxConvertedData[6] & 0xFF;
-    TxData[1] = (uhADCxConvertedData[6] >> 8) & 0xFF;
-	/*	TxData[3] = uhADCxConvertedData[1] & 0xFF;
-    TxData[4] = (uhADCxConvertedData[1] >> 8) & 0xFF;
-		uhADCxConvertedData_Voltage_mVolt=uhADCxConvertedData[3];
-	uhADCxConvertedData_Voltage_mVolt=uhADCxConvertedData[4];
-	uhADCxConvertedData_Voltage_mVolt=uhADCxConvertedData[5];
-	uhADCxConvertedData_Voltage_mVolt=uhADCxConvertedData[6];
-	uhADCxConvertedData_Voltage_mVolt=uhADCxConvertedData[7];
- 	uhADCxConvertedData_Voltage_mVolt=uhADCxConvertedData[8];
-	uhADCxConvertedData_Voltage_mVolt=uhADCxConvertedData[9];
-*/
-        /* Start the Transmission process */
-    if (HAL_FDCAN_AddMessageToTxFifoQ(&hfdcan1, &TxHeader, TxData) != HAL_OK)
-		{
-			/* Transmission request Error */
-			Error_Handler();
-		}
-		//HAL_Delay(1);
 		
 		
 		HAL_FDCAN_GetErrorCounters(&hfdcan1, &errorCounter);
@@ -233,7 +195,7 @@ void SystemClock_Config(void)
   RCC_OscInitStruct.PLL.PLLState = RCC_PLL_ON;
   RCC_OscInitStruct.PLL.PLLSource = RCC_PLLSOURCE_HSI;
   RCC_OscInitStruct.PLL.PLLM = RCC_PLLM_DIV1;
-  RCC_OscInitStruct.PLL.PLLN = 20;
+  RCC_OscInitStruct.PLL.PLLN = 16;
   RCC_OscInitStruct.PLL.PLLP = RCC_PLLP_DIV2;
   RCC_OscInitStruct.PLL.PLLQ = RCC_PLLQ_DIV2;
   RCC_OscInitStruct.PLL.PLLR = RCC_PLLR_DIV2;
@@ -246,11 +208,11 @@ void SystemClock_Config(void)
   RCC_ClkInitStruct.ClockType = RCC_CLOCKTYPE_HCLK|RCC_CLOCKTYPE_SYSCLK
                               |RCC_CLOCKTYPE_PCLK1|RCC_CLOCKTYPE_PCLK2;
   RCC_ClkInitStruct.SYSCLKSource = RCC_SYSCLKSOURCE_PLLCLK;
-  RCC_ClkInitStruct.AHBCLKDivider = RCC_SYSCLK_DIV2;
+  RCC_ClkInitStruct.AHBCLKDivider = RCC_SYSCLK_DIV1;
   RCC_ClkInitStruct.APB1CLKDivider = RCC_HCLK_DIV8;
   RCC_ClkInitStruct.APB2CLKDivider = RCC_HCLK_DIV8;
 
-  if (HAL_RCC_ClockConfig(&RCC_ClkInitStruct, FLASH_LATENCY_2) != HAL_OK)
+  if (HAL_RCC_ClockConfig(&RCC_ClkInitStruct, FLASH_LATENCY_3) != HAL_OK)
   {
     Error_Handler();
   }
@@ -293,15 +255,15 @@ static void MX_ADC1_Init(void)
   hadc1.Init.Resolution = ADC_RESOLUTION_12B;
   hadc1.Init.DataAlign = ADC_DATAALIGN_RIGHT;
   hadc1.Init.GainCompensation = 0;
-  hadc1.Init.ScanConvMode = ADC_SCAN_DISABLE;
-  hadc1.Init.EOCSelection = ADC_EOC_SINGLE_CONV;
+  hadc1.Init.ScanConvMode = ADC_SCAN_ENABLE;
+  hadc1.Init.EOCSelection = ADC_EOC_SEQ_CONV;
   hadc1.Init.LowPowerAutoWait = DISABLE;
-  hadc1.Init.ContinuousConvMode = DISABLE;
-  hadc1.Init.NbrOfConversion = 1;
+  hadc1.Init.ContinuousConvMode = ENABLE;
+  hadc1.Init.NbrOfConversion = 7;
   hadc1.Init.DiscontinuousConvMode = DISABLE;
   hadc1.Init.ExternalTrigConv = ADC_SOFTWARE_START;
   hadc1.Init.ExternalTrigConvEdge = ADC_EXTERNALTRIGCONVEDGE_NONE;
-  hadc1.Init.DMAContinuousRequests = DISABLE;
+  hadc1.Init.DMAContinuousRequests = ENABLE;
   hadc1.Init.Overrun = ADC_OVR_DATA_OVERWRITTEN;
   hadc1.Init.OversamplingMode = DISABLE;
   if (HAL_ADC_Init(&hadc1) != HAL_OK)
@@ -319,10 +281,60 @@ static void MX_ADC1_Init(void)
   */
   sConfig.Channel = ADC_CHANNEL_6;
   sConfig.Rank = ADC_REGULAR_RANK_1;
-  sConfig.SamplingTime = ADC_SAMPLETIME_6CYCLES_5;
+  sConfig.SamplingTime = ADC_SAMPLETIME_47CYCLES_5;
   sConfig.SingleDiff = ADC_SINGLE_ENDED;
   sConfig.OffsetNumber = ADC_OFFSET_NONE;
   sConfig.Offset = 0;
+  if (HAL_ADC_ConfigChannel(&hadc1, &sConfig) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /** Configure Regular Channel
+  */
+  sConfig.Channel = ADC_CHANNEL_7;
+  sConfig.Rank = ADC_REGULAR_RANK_2;
+  if (HAL_ADC_ConfigChannel(&hadc1, &sConfig) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /** Configure Regular Channel
+  */
+  sConfig.Channel = ADC_CHANNEL_8;
+  sConfig.Rank = ADC_REGULAR_RANK_3;
+  if (HAL_ADC_ConfigChannel(&hadc1, &sConfig) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /** Configure Regular Channel
+  */
+  sConfig.Channel = ADC_CHANNEL_9;
+  sConfig.Rank = ADC_REGULAR_RANK_4;
+  if (HAL_ADC_ConfigChannel(&hadc1, &sConfig) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /** Configure Regular Channel
+  */
+  sConfig.Channel = ADC_CHANNEL_3;
+  sConfig.Rank = ADC_REGULAR_RANK_5;
+  sConfig.SamplingTime = ADC_SAMPLETIME_2CYCLES_5;
+  if (HAL_ADC_ConfigChannel(&hadc1, &sConfig) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /** Configure Regular Channel
+  */
+  sConfig.Channel = ADC_CHANNEL_4;
+  sConfig.Rank = ADC_REGULAR_RANK_6;
+  sConfig.SamplingTime = ADC_SAMPLETIME_47CYCLES_5;
+  if (HAL_ADC_ConfigChannel(&hadc1, &sConfig) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /** Configure Regular Channel
+  */
+  sConfig.Channel = ADC_CHANNEL_5;
+  sConfig.Rank = ADC_REGULAR_RANK_7;
   if (HAL_ADC_ConfigChannel(&hadc1, &sConfig) != HAL_OK)
   {
     Error_Handler();
@@ -427,7 +439,7 @@ static void MX_ADC3_Init(void)
   /** Common config
   */
   hadc3.Instance = ADC3;
-  hadc3.Init.ClockPrescaler = ADC_CLOCK_SYNC_PCLK_DIV2;
+  hadc3.Init.ClockPrescaler = ADC_CLOCK_SYNC_PCLK_DIV4;
   hadc3.Init.Resolution = ADC_RESOLUTION_12B;
   hadc3.Init.DataAlign = ADC_DATAALIGN_RIGHT;
   hadc3.Init.GainCompensation = 0;
@@ -503,8 +515,8 @@ static void MX_FDCAN1_Init(void)
   hfdcan1.Init.ProtocolException = DISABLE;
   hfdcan1.Init.NominalPrescaler = 2;
   hfdcan1.Init.NominalSyncJumpWidth = 1;
-  hfdcan1.Init.NominalTimeSeg1 = 5;
-  hfdcan1.Init.NominalTimeSeg2 = 2;
+  hfdcan1.Init.NominalTimeSeg1 = 6;
+  hfdcan1.Init.NominalTimeSeg2 = 1;
   hfdcan1.Init.DataPrescaler = 1;
   hfdcan1.Init.DataSyncJumpWidth = 1;
   hfdcan1.Init.DataTimeSeg1 = 6;
@@ -538,7 +550,7 @@ static void MX_I2C3_Init(void)
 
   /* USER CODE END I2C3_Init 1 */
   hi2c3.Instance = I2C3;
-  hi2c3.Init.Timing = 0x00202538;
+  hi2c3.Init.Timing = 0x2000090E;
   hi2c3.Init.OwnAddress1 = 0;
   hi2c3.Init.AddressingMode = I2C_ADDRESSINGMODE_7BIT;
   hi2c3.Init.DualAddressMode = I2C_DUALADDRESS_DISABLE;
@@ -585,9 +597,6 @@ static void MX_DMA_Init(void)
   /* DMA1_Channel2_IRQn interrupt configuration */
   HAL_NVIC_SetPriority(DMA1_Channel2_IRQn, 0, 0);
   HAL_NVIC_EnableIRQ(DMA1_Channel2_IRQn);
-  /* DMAMUX_OVR_IRQn interrupt configuration */
-  HAL_NVIC_SetPriority(DMAMUX_OVR_IRQn, 0, 0);
-  HAL_NVIC_EnableIRQ(DMAMUX_OVR_IRQn);
 
 }
 
@@ -698,8 +707,8 @@ void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef* hadc)
     // Conversion Complete & DMA Transfer Complete As Well
     // So The AD_RES Is Now Updated & Let's Move IT To The PWM CCR1
     // Update The PWM Duty Cycle With Latest ADC Conversion Result
-    TxData[0] = uhADCxConvertedData[0] & 0xFF;
-    TxData[1] = (uhADCxConvertedData[0] >> 8) & 0xFF;
+    TxData[0] = uhADCxConvertedData[6] & 0xFF;
+    TxData[1] = (uhADCxConvertedData[6] >> 8) & 0xFF;
 	/*	TxData[3] = uhADCxConvertedData[1] & 0xFF;
     TxData[4] = (uhADCxConvertedData[1] >> 8) & 0xFF;
 		uhADCxConvertedData_Voltage_mVolt=uhADCxConvertedData[3];
