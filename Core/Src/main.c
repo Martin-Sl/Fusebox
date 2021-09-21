@@ -19,6 +19,7 @@
 /* USER CODE END Header */
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
+#include "lsm6dsl.h"
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
@@ -37,10 +38,10 @@ count to 1000
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
 #define ADC1NUMConversions 7
-#define ADC2NUMConversions 3
+#define ADC2NUMConversions 4
 #define ADC3NUMConversions 2
 
-uint16_t 	 lastConversionResults[12];
+uint16_t 	 lastConversionResults[13];
 
 uint8_t ubKeyNumber = 0x0;
 FDCAN_RxHeaderTypeDef RxHeader;
@@ -73,6 +74,10 @@ DMA_HandleTypeDef hdma_adc3;
 
 FDCAN_HandleTypeDef hfdcan1;
 
+I2C_HandleTypeDef hi2c3;
+
+IWDG_HandleTypeDef hiwdg;
+
 TIM_HandleTypeDef htim2;
 TIM_HandleTypeDef htim3;
 
@@ -90,6 +95,8 @@ static void MX_ADC2_Init(void);
 static void MX_ADC3_Init(void);
 static void MX_TIM2_Init(void);
 static void MX_TIM3_Init(void);
+static void MX_IWDG_Init(void);
+//static void SENSOR_IO_Init(void);
 /* USER CODE BEGIN PFP */
 void FDCAN_Config(void);
 
@@ -108,9 +115,7 @@ void FDCAN_Config(void);
 int main(void)
 {
   /* USER CODE BEGIN 1 */
-	uint16_t AD_RES = 0;
-	uint16_t AD_RESreflow = 0;
-	int i = 0;
+	
   /* USER CODE END 1 */
 
   /* MCU Configuration--------------------------------------------------------*/
@@ -138,6 +143,8 @@ int main(void)
   MX_ADC3_Init();
   MX_TIM2_Init();
   MX_TIM3_Init();
+  MX_IWDG_Init();
+  SENSOR_IO_Init();
   /* USER CODE BEGIN 2 */
 	HAL_Delay(100);
 	HAL_ADC_Start_DMA(&hadc1, (uint32_t*)uhADCxConvertedData, 7);
@@ -146,7 +153,7 @@ int main(void)
 	
 	HAL_TIM_Base_Start_IT(&htim2);
 	FDCAN_Config();
-	HAL_TIM_PWM_Start(&htim3, TIM_CHANNEL_1);
+	//HAL_TIM_PWM_Start(&htim3, TIM_CHANNEL_1);
   /* USER CODE END 2 */
 
   /* Infinite loop */
@@ -176,9 +183,10 @@ void SystemClock_Config(void)
   /** Initializes the RCC Oscillators according to the specified parameters
   * in the RCC_OscInitTypeDef structure.
   */
-  RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_HSI;
+  RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_HSI|RCC_OSCILLATORTYPE_LSI;
   RCC_OscInitStruct.HSIState = RCC_HSI_ON;
   RCC_OscInitStruct.HSICalibrationValue = RCC_HSICALIBRATION_DEFAULT;
+  RCC_OscInitStruct.LSIState = RCC_LSI_ON;
   RCC_OscInitStruct.PLL.PLLState = RCC_PLL_ON;
   RCC_OscInitStruct.PLL.PLLSource = RCC_PLLSOURCE_HSI;
   RCC_OscInitStruct.PLL.PLLM = RCC_PLLM_DIV1;
@@ -205,8 +213,9 @@ void SystemClock_Config(void)
   }
   /** Initializes the peripherals clocks
   */
-  PeriphClkInit.PeriphClockSelection = RCC_PERIPHCLK_ADC12|RCC_PERIPHCLK_ADC345
-                              |RCC_PERIPHCLK_FDCAN;
+  PeriphClkInit.PeriphClockSelection = RCC_PERIPHCLK_I2C3|RCC_PERIPHCLK_ADC12
+                              |RCC_PERIPHCLK_ADC345|RCC_PERIPHCLK_FDCAN;
+  PeriphClkInit.I2c3ClockSelection = RCC_I2C3CLKSOURCE_PCLK1;
   PeriphClkInit.FdcanClockSelection = RCC_FDCANCLKSOURCE_PCLK1;
   PeriphClkInit.Adc12ClockSelection = RCC_ADC12CLKSOURCE_SYSCLK;
   PeriphClkInit.Adc345ClockSelection = RCC_ADC345CLKSOURCE_SYSCLK;
@@ -324,7 +333,9 @@ static void MX_ADC1_Init(void)
     Error_Handler();
   }
   /* USER CODE BEGIN ADC1_Init 2 */
-
+//CH3 - AUX - single fan 		index 4
+//CH4 - ETC - single fan	 	index 5
+//CH5 - SCRET - FANS ON 		index 6
   /* USER CODE END ADC1_Init 2 */
 
 }
@@ -357,7 +368,7 @@ static void MX_ADC2_Init(void)
   hadc2.Init.EOCSelection = ADC_EOC_SEQ_CONV;
   hadc2.Init.LowPowerAutoWait = DISABLE;
   hadc2.Init.ContinuousConvMode = ENABLE;
-  hadc2.Init.NbrOfConversion = 3;
+  hadc2.Init.NbrOfConversion = 4;
   hadc2.Init.DiscontinuousConvMode = DISABLE;
   hadc2.Init.ExternalTrigConv = ADC_SOFTWARE_START;
   hadc2.Init.ExternalTrigConvEdge = ADC_EXTERNALTRIGCONVEDGE_NONE;
@@ -396,8 +407,19 @@ static void MX_ADC2_Init(void)
   {
     Error_Handler();
   }
+  /** Configure Regular Channel
+  */
+  sConfig.Channel = ADC_CHANNEL_15;
+  sConfig.Rank = ADC_REGULAR_RANK_4;
+  if (HAL_ADC_ConfigChannel(&hadc2, &sConfig) != HAL_OK)
+  {
+    Error_Handler();
+  }
   /* USER CODE BEGIN ADC2_Init 2 */
-
+	//CS1 ADC 2 IN 4				ID7
+	//BOTH FANS ADC 2 IN 11	ID9
+	//FUEL ADC 2 IN 15			ID10
+	
   /* USER CODE END ADC2_Init 2 */
 
 }
@@ -499,8 +521,8 @@ static void MX_FDCAN1_Init(void)
   hfdcan1.Init.ProtocolException = DISABLE;
   hfdcan1.Init.NominalPrescaler = 2;
   hfdcan1.Init.NominalSyncJumpWidth = 1;
-  hfdcan1.Init.NominalTimeSeg1 = 6;
-  hfdcan1.Init.NominalTimeSeg2 = 1;
+  hfdcan1.Init.NominalTimeSeg1 = 5;
+  hfdcan1.Init.NominalTimeSeg2 = 2;
   hfdcan1.Init.DataPrescaler = 1;
   hfdcan1.Init.DataSyncJumpWidth = 1;
   hfdcan1.Init.DataTimeSeg1 = 6;
@@ -515,6 +537,82 @@ static void MX_FDCAN1_Init(void)
   /* USER CODE BEGIN FDCAN1_Init 2 */
 	
   /* USER CODE END FDCAN1_Init 2 */
+
+}
+
+/**
+  * @brief I2C3 Initialization Function
+  * @param None
+  * @retval None
+  */
+static void SENSOR_IO_Init(void)
+{
+
+  /* USER CODE BEGIN I2C3_Init 0 */
+
+  /* USER CODE END I2C3_Init 0 */
+
+  /* USER CODE BEGIN I2C3_Init 1 */
+
+  /* USER CODE END I2C3_Init 1 */
+  hi2c3.Instance = I2C3;
+  hi2c3.Init.Timing = 0x00303D5B;
+  hi2c3.Init.OwnAddress1 = 0;
+  hi2c3.Init.AddressingMode = I2C_ADDRESSINGMODE_7BIT;
+  hi2c3.Init.DualAddressMode = I2C_DUALADDRESS_DISABLE;
+  hi2c3.Init.OwnAddress2 = 0;
+  hi2c3.Init.OwnAddress2Masks = I2C_OA2_NOMASK;
+  hi2c3.Init.GeneralCallMode = I2C_GENERALCALL_DISABLE;
+  hi2c3.Init.NoStretchMode = I2C_NOSTRETCH_DISABLE;
+  if (HAL_I2C_Init(&hi2c3) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /** Configure Analogue filter
+  */
+  if (HAL_I2CEx_ConfigAnalogFilter(&hi2c3, I2C_ANALOGFILTER_ENABLE) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /** Configure Digital filter
+  */
+  if (HAL_I2CEx_ConfigDigitalFilter(&hi2c3, 0) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /* USER CODE BEGIN I2C3_Init 2 */
+
+  /* USER CODE END I2C3_Init 2 */
+
+}
+
+
+/**
+  * @brief IWDG Initialization Function
+  * @param None
+  * @retval None
+  */
+static void MX_IWDG_Init(void)
+{
+
+  /* USER CODE BEGIN IWDG_Init 0 */
+
+  /* USER CODE END IWDG_Init 0 */
+
+  /* USER CODE BEGIN IWDG_Init 1 */
+
+  /* USER CODE END IWDG_Init 1 */
+  hiwdg.Instance = IWDG;
+  hiwdg.Init.Prescaler = IWDG_PRESCALER_4;
+  hiwdg.Init.Window = 4095;
+  hiwdg.Init.Reload = 4095;
+  if (HAL_IWDG_Init(&hiwdg) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /* USER CODE BEGIN IWDG_Init 2 */
+
+  /* USER CODE END IWDG_Init 2 */
 
 }
 
@@ -651,19 +749,16 @@ static void MX_GPIO_Init(void)
   __HAL_RCC_GPIOB_CLK_ENABLE();
 
   /*Configure GPIO pin Output Level */
-  HAL_GPIO_WritePin(GPIOF, GPIO_PIN_0, GPIO_PIN_RESET);
-
-  /*Configure GPIO pin Output Level */
-  HAL_GPIO_WritePin(GPIOF, GPIO_PIN_1, GPIO_PIN_SET);
+  HAL_GPIO_WritePin(GPIOF, GPIO_PIN_0|GPIO_PIN_1, GPIO_PIN_RESET);
 
   /*Configure GPIO pin Output Level */
   HAL_GPIO_WritePin(GPIOA, GPIO_PIN_1, GPIO_PIN_RESET);
 
   /*Configure GPIO pin Output Level */
-  HAL_GPIO_WritePin(GPIOB, GPIO_PIN_10, GPIO_PIN_SET);
+  HAL_GPIO_WritePin(GPIOB, GPIO_PIN_10|GPIO_PIN_11, GPIO_PIN_RESET);
 
   /*Configure GPIO pin Output Level */
-  HAL_GPIO_WritePin(GPIOB, GPIO_PIN_11|GPIO_PIN_12, GPIO_PIN_RESET);
+  HAL_GPIO_WritePin(GPIOB, GPIO_PIN_12, GPIO_PIN_SET);
 
   /*Configure GPIO pin Output Level */
   HAL_GPIO_WritePin(GPIOC, GPIO_PIN_12, GPIO_PIN_RESET);
@@ -766,33 +861,17 @@ void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef* hadc)
 // Callback: timer has rolled over
 void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 {
-		/* Prepare Tx Header */
-		TxHeader.Identifier = 0x101;
-		TxHeader.IdType = FDCAN_STANDARD_ID;
-		TxHeader.TxFrameType = FDCAN_DATA_FRAME;
-		TxHeader.DataLength = FDCAN_DLC_BYTES_8;
-		TxHeader.ErrorStateIndicator = FDCAN_ESI_ACTIVE;
-		TxHeader.BitRateSwitch = FDCAN_BRS_OFF;
-		TxHeader.FDFormat = FDCAN_CLASSIC_CAN;
-		TxHeader.TxEventFifoControl = FDCAN_NO_TX_EVENTS;
-		TxHeader.MessageMarker = 0;
 	
-    TxData[0] = lastConversionResults[0] & 0xFF;
-    TxData[1] = ((lastConversionResults[0] >> 8) & 0xFF ) | ((lastConversionResults[1] & 0xF )<<4);
-		TxData[2] = (lastConversionResults[1]>> 4);
-		TxData[3] = lastConversionResults[2] & 0xFF;
-    TxData[4] = ((lastConversionResults[2] >> 8) & 0xFF ) | ((lastConversionResults[3] & 0xF )<<4);
-		TxData[5] = (lastConversionResults[3]>> 4);
-		TxData[6] = lastConversionResults[4] & 0xFF;
-    TxData[7] = ((lastConversionResults[4] >> 8) & 0xFF );
-        /* Start the Transmission process */
-    if (HAL_FDCAN_AddMessageToTxFifoQ(&hfdcan1, &TxHeader, TxData) != HAL_OK)
-		{
-			/* Transmission request Error */
-			Error_Handler();
-		}	
+	//CH3 - AUX - single fan 		index 4
+	//CH4 - ETC - single fan	 	index 5
+	//CH5 - SCRET - FANS ON 		index 6
+	//CS1 ADC 2 IN 4				ID7
+	//BOTH FANS ADC 2 IN 11	ID9
+	//FUEL ADC 2 IN 15			ID10
+	
 		
-		TxHeader.Identifier = 0x102;
+		/* Prepare Tx Header */
+		TxHeader.Identifier = 0x104;
 		TxHeader.IdType = FDCAN_STANDARD_ID;
 		TxHeader.TxFrameType = FDCAN_DATA_FRAME;
 		TxHeader.DataLength = FDCAN_DLC_BYTES_8;
@@ -802,12 +881,12 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 		TxHeader.TxEventFifoControl = FDCAN_NO_TX_EVENTS;
 		TxHeader.MessageMarker = 0;
 	
-    TxData[0] = lastConversionResults[5] & 0xFF;
-    TxData[1] = ((lastConversionResults[5] >> 8) & 0xFF ) | ((lastConversionResults[6] & 0xF )<<4);
-		TxData[2] = (lastConversionResults[6]>> 4);
-		TxData[3] = lastConversionResults[7] & 0xFF;
-    TxData[4] = ((lastConversionResults[7] >> 8) & 0xFF ) | ((lastConversionResults[8] & 0xF )<<4);
-		TxData[5] = (lastConversionResults[8]>> 4);
+    TxData[0] = lastConversionResults[4] & 0xFF;
+    TxData[1] = ((lastConversionResults[4] >> 8) & 0xFF ) | ((lastConversionResults[5] & 0xF )<<4);
+		TxData[2] = (lastConversionResults[5]>> 4);
+		TxData[3] = lastConversionResults[6] & 0xFF;
+    TxData[4] = ((lastConversionResults[6] >> 8) & 0xFF ) | ((lastConversionResults[7] & 0xF )<<4);
+		TxData[5] = (lastConversionResults[7]>> 4);
 		TxData[6] = lastConversionResults[9] & 0xFF;
     TxData[7] = ((lastConversionResults[9] >> 8) & 0xFF );
         /* Start the Transmission process */
@@ -817,7 +896,7 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 			Error_Handler();
 		}	
 		
-		TxHeader.Identifier = 0x103;
+		TxHeader.Identifier = 0x105;
 		TxHeader.IdType = FDCAN_STANDARD_ID;
 		TxHeader.TxFrameType = FDCAN_DATA_FRAME;
 		TxHeader.DataLength = FDCAN_DLC_BYTES_8;
@@ -828,20 +907,13 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 		TxHeader.MessageMarker = 0;
 	
     TxData[0] = lastConversionResults[10] & 0xFF;
-    TxData[1] = ((lastConversionResults[10] >> 8) & 0xFF ) | ((lastConversionResults[11] & 0xF )<<4);
-		TxData[2] = (lastConversionResults[11]>> 4);
-
+    TxData[1] = ((lastConversionResults[10] >> 8) & 0xFF );
         /* Start the Transmission process */
     if (HAL_FDCAN_AddMessageToTxFifoQ(&hfdcan1, &TxHeader, TxData) != HAL_OK)
 		{
 			/* Transmission request Error */
 			Error_Handler();
 		}	
-		
-		
-		
-
-		
 		
 		HAL_FDCAN_GetErrorCounters(&hfdcan1, &errorCounter);
 		HAL_FDCAN_IsRestrictedOperationMode(&hfdcan1);
@@ -853,6 +925,10 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 			{
 				Error_Handler();
 			}
+		}
+		else{
+			//Refresh watchdog
+			HAL_IWDG_Refresh(&hiwdg);
 		}
 }
 
