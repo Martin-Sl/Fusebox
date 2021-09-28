@@ -298,11 +298,11 @@ extern GYRO_DrvTypeDef Lsm6dslGyroDrv;
  * @{
  */
 /* IO functions */
-extern void     SENSOR_IO_Init(void);
-extern void     SENSOR_IO_Write(uint8_t Addr, uint8_t Reg, uint8_t Value);
+void     SENSOR_IO_Init(void);
+void     SENSOR_IO_Write(uint8_t Addr, uint8_t Reg, uint8_t Value);
 extern uint8_t  SENSOR_IO_Read(uint8_t Addr, uint8_t Reg);
 extern uint16_t SENSOR_IO_ReadMultiple(uint8_t Addr, uint8_t Reg, uint8_t *Buffer, uint16_t Length);
-extern void     SENSOR_IO_WriteMultiple(uint8_t Addr, uint8_t Reg, uint8_t *Buffer, uint16_t Length);
+void     SENSOR_IO_WriteMultiple(uint8_t Addr, uint8_t Reg, uint8_t *Buffer, uint16_t Length);
 /**
   * @}
   */

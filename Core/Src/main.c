@@ -18,8 +18,9 @@
   */
 /* USER CODE END Header */
 /* Includes ------------------------------------------------------------------*/
-#include "main.h"
 #include "lsm6dsl.h"
+#include "main.h"
+
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
@@ -105,7 +106,7 @@ void FDCAN_Config(void);
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
-
+char id = 0;
 /* USER CODE END 0 */
 
 /**
@@ -143,7 +144,7 @@ int main(void)
   MX_ADC3_Init();
   MX_TIM2_Init();
   MX_TIM3_Init();
-  MX_IWDG_Init();
+  //MX_IWDG_Init();
   SENSOR_IO_Init();
   /* USER CODE BEGIN 2 */
 	HAL_Delay(100);
@@ -155,7 +156,12 @@ int main(void)
 	FDCAN_Config();
 	//HAL_TIM_PWM_Start(&htim3, TIM_CHANNEL_1);
   /* USER CODE END 2 */
-
+	
+	
+	id = LSM6DSL_AccReadID();
+	id = id + 1 -1 ;
+	
+	LSM6DSL_AccInit(LSM6DSL_ACC_FULLSCALE_16G+LSM6DSL_ODR_6660Hz);
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
   while (1)
@@ -545,46 +551,7 @@ static void MX_FDCAN1_Init(void)
   * @param None
   * @retval None
   */
-static void SENSOR_IO_Init(void)
-{
 
-  /* USER CODE BEGIN I2C3_Init 0 */
-
-  /* USER CODE END I2C3_Init 0 */
-
-  /* USER CODE BEGIN I2C3_Init 1 */
-
-  /* USER CODE END I2C3_Init 1 */
-  hi2c3.Instance = I2C3;
-  hi2c3.Init.Timing = 0x00303D5B;
-  hi2c3.Init.OwnAddress1 = 0;
-  hi2c3.Init.AddressingMode = I2C_ADDRESSINGMODE_7BIT;
-  hi2c3.Init.DualAddressMode = I2C_DUALADDRESS_DISABLE;
-  hi2c3.Init.OwnAddress2 = 0;
-  hi2c3.Init.OwnAddress2Masks = I2C_OA2_NOMASK;
-  hi2c3.Init.GeneralCallMode = I2C_GENERALCALL_DISABLE;
-  hi2c3.Init.NoStretchMode = I2C_NOSTRETCH_DISABLE;
-  if (HAL_I2C_Init(&hi2c3) != HAL_OK)
-  {
-    Error_Handler();
-  }
-  /** Configure Analogue filter
-  */
-  if (HAL_I2CEx_ConfigAnalogFilter(&hi2c3, I2C_ANALOGFILTER_ENABLE) != HAL_OK)
-  {
-    Error_Handler();
-  }
-  /** Configure Digital filter
-  */
-  if (HAL_I2CEx_ConfigDigitalFilter(&hi2c3, 0) != HAL_OK)
-  {
-    Error_Handler();
-  }
-  /* USER CODE BEGIN I2C3_Init 2 */
-
-  /* USER CODE END I2C3_Init 2 */
-
-}
 
 
 /**
@@ -794,7 +761,9 @@ static void MX_GPIO_Init(void)
 }
 
 /* USER CODE BEGIN 4 */
-static void FDCAN_Config(void)
+
+
+void FDCAN_Config(void)
 {
   FDCAN_FilterTypeDef sFilterConfig;
 
@@ -832,6 +801,66 @@ static void FDCAN_Config(void)
   
 }
 
+void SENSOR_IO_Init(void)
+{
+
+  /* USER CODE BEGIN I2C3_Init 0 */
+
+  /* USER CODE END I2C3_Init 0 */
+
+  /* USER CODE BEGIN I2C3_Init 1 */
+
+  /* USER CODE END I2C3_Init 1 */
+  hi2c3.Instance = I2C3;
+  hi2c3.Init.Timing = 0x00303D5B;
+  hi2c3.Init.OwnAddress1 = 0;
+  hi2c3.Init.AddressingMode = I2C_ADDRESSINGMODE_7BIT;
+  hi2c3.Init.DualAddressMode = I2C_DUALADDRESS_DISABLE;
+  hi2c3.Init.OwnAddress2 = 0;
+  hi2c3.Init.OwnAddress2Masks = I2C_OA2_NOMASK;
+  hi2c3.Init.GeneralCallMode = I2C_GENERALCALL_DISABLE;
+  hi2c3.Init.NoStretchMode = I2C_NOSTRETCH_DISABLE;
+  if (HAL_I2C_Init(&hi2c3) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /** Configure Analogue filter
+  */
+  if (HAL_I2CEx_ConfigAnalogFilter(&hi2c3, I2C_ANALOGFILTER_ENABLE) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /** Configure Digital filter
+  */
+  if (HAL_I2CEx_ConfigDigitalFilter(&hi2c3, 0) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /* USER CODE BEGIN I2C3_Init 2 */
+
+  /* USER CODE END I2C3_Init 2 */
+
+}
+
+void SENSOR_IO_Write(uint8_t Addr, uint8_t Reg, uint8_t Value){
+		HAL_I2C_Master_Transmit(&hi2c3,Addr,&Reg,1,100);
+}
+uint8_t res = 0;
+uint8_t SENSOR_IO_Read(uint8_t Addr, uint8_t Reg){
+	HAL_I2C_Master_Receive(&hi2c3,Addr,	&Reg,1,100);
+	
+	res = Reg;
+	
+	return res;
+}
+
+uint16_t SENSOR_IO_ReadMultiple(uint8_t Addr, uint8_t Reg, uint8_t *Buffer, uint16_t Length){
+	HAL_I2C_Master_Receive(&hi2c3,Addr,	Buffer,Length,100);
+	
+	uint16_t res = (Buffer[1] << 8)+ Buffer[0];
+	
+	return res;
+}
 
 void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef* hadc)
 {
