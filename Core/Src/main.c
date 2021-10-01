@@ -107,6 +107,8 @@ void FDCAN_Config(void);
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
 char id = 0;
+int16_t accelerationRes[3] = {0,0,0};
+//uint16_t accelerationRes = 0;
 /* USER CODE END 0 */
 
 /**
@@ -161,13 +163,16 @@ int main(void)
 	id = LSM6DSL_AccReadID();
 	id = id + 1 -1 ;
 	
-	LSM6DSL_AccInit(LSM6DSL_ACC_FULLSCALE_16G+LSM6DSL_ODR_6660Hz);
+	LSM6DSL_AccInit(LSM6DSL_ACC_FULLSCALE_2G+LSM6DSL_ODR_6660Hz);
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
   while (1)
   {
     /* USER CODE END WHILE */
-
+			LSM6DSL_AccReadXYZ(accelerationRes);
+			if(accelerationRes[0] > 1){
+				HAL_IWDG_Refresh(&hiwdg);
+			}
     /* USER CODE BEGIN 3 */
   }
   /* USER CODE END 3 */
@@ -843,23 +848,24 @@ void SENSOR_IO_Init(void)
 }
 
 void SENSOR_IO_Write(uint8_t Addr, uint8_t Reg, uint8_t Value){
-		HAL_I2C_Master_Transmit(&hi2c3,Addr,&Reg,1,100);
+		HAL_I2C_Mem_Write(&hi2c3,Addr,Reg,1,&Value,1,1000);
 }
-uint8_t res = 0;
+uint8_t res[10] = {0,0,0,0,0,0,0,0,0,0};
 uint8_t SENSOR_IO_Read(uint8_t Addr, uint8_t Reg){
-	HAL_I2C_Master_Receive(&hi2c3,Addr,	&Reg,1,100);
 	
-	res = Reg;
+	HAL_I2C_Mem_Read(&hi2c3,Addr,Reg,1,res,1,1000);
 	
-	return res;
+	
+	return res[0];
 }
 
+uint8_t readRes[10] = {0,0,0,0,0,0,0,0,0,0};
 uint16_t SENSOR_IO_ReadMultiple(uint8_t Addr, uint8_t Reg, uint8_t *Buffer, uint16_t Length){
-	HAL_I2C_Master_Receive(&hi2c3,Addr,	Buffer,Length,100);
+	HAL_I2C_Mem_Read(&hi2c3,Addr,Reg,1,Buffer,Length,1000);
 	
-	uint16_t res = (Buffer[1] << 8)+ Buffer[0];
+	uint16_t result = (Buffer[1] << 8)+ Buffer[0];
 	
-	return res;
+	return result;
 }
 
 void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef* hadc)
