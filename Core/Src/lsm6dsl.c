@@ -20,7 +20,8 @@
 
 /* Includes ------------------------------------------------------------------*/
 #include "lsm6dsl.h"
-
+uint8_t tmp = 0;
+uint8_t ctrl = 0;
 /** @addtogroup BSP
   * @{
   */
@@ -82,8 +83,8 @@ GYRO_DrvTypeDef Lsm6dslGyroDrv =
   */
 void LSM6DSL_AccInit(uint16_t InitStruct)
 {  
-  uint8_t ctrl = 0x00;
-  uint8_t tmp;
+   ctrl = 0x00;
+  
 
   /* Read CTRL1_XL */
   tmp = SENSOR_IO_Read(LSM6DSL_ACC_GYRO_I2C_ADDRESS_LOW, LSM6DSL_ACC_GYRO_CTRL1_XL);
@@ -109,7 +110,7 @@ void LSM6DSL_AccInit(uint16_t InitStruct)
   */
 void LSM6DSL_AccDeInit(void)
 {
-  uint8_t ctrl = 0x00;
+  ctrl = 0x00;
   
   /* Read control register 1 value */
   ctrl = SENSOR_IO_Read(LSM6DSL_ACC_GYRO_I2C_ADDRESS_LOW, LSM6DSL_ACC_GYRO_CTRL1_XL);
@@ -142,7 +143,7 @@ uint8_t LSM6DSL_AccReadID(void)
   */
 void LSM6DSL_AccLowPower(uint16_t status)
 {
-  uint8_t ctrl = 0x00;
+  ctrl = 0x00;
   
   /* Read CTRL6_C value */
   ctrl = SENSOR_IO_Read(LSM6DSL_ACC_GYRO_I2C_ADDRESS_LOW, LSM6DSL_ACC_GYRO_CTRL6_C);
@@ -226,8 +227,8 @@ void LSM6DSL_AccReadXYZ(int16_t* pData)
   */
 void LSM6DSL_GyroInit(uint16_t InitStruct)
 {  
-  uint8_t ctrl = 0x00;
-  uint8_t tmp;
+  ctrl = 0x00;
+  tmp=0;
 
   /* Read CTRL2_G */
   tmp = SENSOR_IO_Read(LSM6DSL_ACC_GYRO_I2C_ADDRESS_LOW, LSM6DSL_ACC_GYRO_CTRL2_G);
@@ -254,7 +255,7 @@ void LSM6DSL_GyroInit(uint16_t InitStruct)
   */
 void LSM6DSL_GyroDeInit(void)
 {
-  uint8_t ctrl = 0x00;
+  ctrl = 0x00;
   
   /* Read control register 1 value */
   ctrl = SENSOR_IO_Read(LSM6DSL_ACC_GYRO_I2C_ADDRESS_LOW, LSM6DSL_ACC_GYRO_CTRL2_G);
@@ -287,7 +288,7 @@ uint8_t LSM6DSL_GyroReadID(void)
   */
 void LSM6DSL_GyroLowPower(uint16_t status)
 {  
-  uint8_t ctrl = 0x00;
+   ctrl = 0x00;
   
   /* Read CTRL7_G value */
   ctrl = SENSOR_IO_Read(LSM6DSL_ACC_GYRO_I2C_ADDRESS_LOW, LSM6DSL_ACC_GYRO_CTRL7_G);
