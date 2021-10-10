@@ -168,28 +168,52 @@ void LSM6DSL_AccLowPower(uint16_t status)
   * @brief  Read X, Y & Z Acceleration values 
   * @param  pData: Data out pointer
   */
+
+int16_t pnRawData[3] = {0,0,0};
+uint8_t ctrlx= 0;
+uint8_t buffer[6] = {0,0,0,0,0,0};
+uint8_t i = 0;
 void LSM6DSL_AccReadXYZ(int16_t* pData)
 {
-  int16_t pnRawData[3];
-  uint8_t ctrlx= 0;
-  uint8_t buffer[6];
-  uint8_t i = 0;
+	int sensitivitySwitch = 0;
+	for(i=0; i<3; i++){
+		pnRawData[i]=0;
+	}
+	ctrlx= 0;
+	for(i=0; i<6; i++){
+		buffer[i]=0;
+	}
+	i = 0;
   float sensitivity = 0;
   
   /* Read the acceleration control register content */
   ctrlx = SENSOR_IO_Read(LSM6DSL_ACC_GYRO_I2C_ADDRESS_LOW, LSM6DSL_ACC_GYRO_CTRL1_XL);
   
   /* Read output register X, Y & Z acceleration */
-  SENSOR_IO_ReadMultiple(LSM6DSL_ACC_GYRO_I2C_ADDRESS_LOW, LSM6DSL_ACC_GYRO_OUTX_L_XL, buffer, 6);
+	
+	buffer[0] = SENSOR_IO_Read(LSM6DSL_ACC_GYRO_I2C_ADDRESS_LOW, LSM6DSL_ACC_GYRO_OUTX_L_XL);
+	buffer[1] = SENSOR_IO_Read(LSM6DSL_ACC_GYRO_I2C_ADDRESS_LOW, LSM6DSL_ACC_GYRO_OUTX_H_XL);
+	buffer[2] = SENSOR_IO_Read(LSM6DSL_ACC_GYRO_I2C_ADDRESS_LOW, LSM6DSL_ACC_GYRO_OUTY_L_XL);
+	buffer[3] = SENSOR_IO_Read(LSM6DSL_ACC_GYRO_I2C_ADDRESS_LOW, LSM6DSL_ACC_GYRO_OUTY_H_XL);
+	buffer[4] = SENSOR_IO_Read(LSM6DSL_ACC_GYRO_I2C_ADDRESS_LOW, LSM6DSL_ACC_GYRO_OUTZ_L_XL);
+	buffer[5] = SENSOR_IO_Read(LSM6DSL_ACC_GYRO_I2C_ADDRESS_LOW, LSM6DSL_ACC_GYRO_OUTZ_H_XL);
+	
+//  SENSOR_IO_ReadMultiple(LSM6DSL_ACC_GYRO_I2C_ADDRESS_LOW, LSM6DSL_ACC_GYRO_OUTX_L_XL, buffer, 6);
   
   for(i=0; i<3; i++)
   {
     pnRawData[i]=((((uint16_t)buffer[2*i+1]) << 8) + (uint16_t)buffer[2*i]);
   }
   
+	sensitivitySwitch = ctrlx & 0x0C;
+	sensitivity = LSM6DSL_ACC_SENSITIVITY_4G;
+	if(sensitivitySwitch != 0){
+		sensitivitySwitch = ctrlx + 0x01;
+	}
   /* Normal mode */
   /* Switch the sensitivity value set in the CRTL1_XL */
-  switch(ctrlx & 0x0C)
+  /*
+	switch(sensitivitySwitch)
   {
   case LSM6DSL_ACC_FULLSCALE_2G:
     sensitivity = LSM6DSL_ACC_SENSITIVITY_2G;
@@ -204,11 +228,11 @@ void LSM6DSL_AccReadXYZ(int16_t* pData)
     sensitivity = LSM6DSL_ACC_SENSITIVITY_16G;
     break;    
   }
-  
+  */
   /* Obtain the mg value for the three axis */
   for(i=0; i<3; i++)
   {
-    pData[i]=( int16_t )(pnRawData[i] * sensitivity);
+    pData[i]=( int16_t )((float)(pnRawData[i]) * (float)(sensitivity));
   }
 }
 

@@ -109,6 +109,11 @@ void FDCAN_Config(void);
 char id = 0;
 int16_t accelerationRes[3] = {0,0,0};
 uint8_t value = 0;
+uint32_t lastTickValue = 0;
+uint32_t tickValue = 0;
+uint32_t tickValueDelta = 0;
+uint32_t tickFreq = 0;
+float accelerationMagnitude;
 //uint16_t accelerationRes = 0;
 /* USER CODE END 0 */
 
@@ -148,8 +153,9 @@ int main(void)
   MX_TIM2_Init();
   MX_TIM3_Init();
   //MX_IWDG_Init();
-  SENSOR_IO_Init();
+  
   /* USER CODE BEGIN 2 */
+	SENSOR_IO_Init();
 	HAL_Delay(100);
 	HAL_ADC_Start_DMA(&hadc1, (uint32_t*)uhADCxConvertedData, 7);
 	HAL_ADC_Start_DMA(&hadc2, (uint32_t*)uhADC2ConvertedData, 3);
@@ -158,21 +164,35 @@ int main(void)
 	HAL_TIM_Base_Start_IT(&htim2);
 	FDCAN_Config();
 	//HAL_TIM_PWM_Start(&htim3, TIM_CHANNEL_1);
-  /* USER CODE END 2 */
-	
+  
 	value = SENSOR_IO_Read(LSM6DSL_ACC_GYRO_I2C_ADDRESS_LOW, LSM6DSL_ACC_GYRO_CTRL3_C);
 	id = LSM6DSL_AccReadID();
 	
 	id = id + 1 -1 ;
+	LSM6DSL_AccInit(LSM6DSL_ACC_FULLSCALE_4G+LSM6DSL_ODR_6660Hz+3);
 	
-	LSM6DSL_AccInit(LSM6DSL_ACC_FULLSCALE_2G+LSM6DSL_ODR_6660Hz);
+	//01001000
+	SENSOR_IO_Write(LSM6DSL_ACC_GYRO_I2C_ADDRESS_LOW, LSM6DSL_ACC_GYRO_CTRL8_XL,0b01001000);
+	
   value = SENSOR_IO_Read(LSM6DSL_ACC_GYRO_I2C_ADDRESS_LOW, LSM6DSL_ACC_GYRO_CTRL3_C);
+	
+	HAL_GetTickPrio();
+	/* USER CODE END 2 */
+	
+	
 	/* Infinite loop */
   /* USER CODE BEGIN WHILE */
   while (1)
   {
     /* USER CODE END WHILE */
+			tickValue = HAL_GetTick();
 			LSM6DSL_AccReadXYZ(accelerationRes);
+			accelerationMagnitude = accelerationRes[0]*accelerationRes[0] + accelerationRes[1]*accelerationRes[1] + accelerationRes[2]*accelerationRes[2];
+			
+			lastTickValue = tickValue;
+			tickValue = HAL_GetTick();
+			tickValueDelta = tickValue - lastTickValue;
+			
 			if(accelerationRes[0] > 1){
 				HAL_IWDG_Refresh(&hiwdg);
 			}
@@ -870,10 +890,12 @@ uint8_t SENSOR_IO_Read(uint8_t Addr, uint8_t Reg){
 }
 
 uint8_t readRes[10] = {0,0,0,0,0,0,0,0,0,0};
+uint16_t readI = 0;
 uint16_t SENSOR_IO_ReadMultiple(uint8_t Addr, uint8_t Reg, uint8_t *Buffer, uint16_t Length){
-	if(HAL_I2C_Mem_Read(&hi2c3,Addr,Reg,1,Buffer,Length,1000) != HAL_ERROR){
-		HAL_IWDG_Refresh(&hiwdg);
+	for(readI = 0; readI<Length; readI++){
+		Buffer[readI] = HAL_I2C_Mem_Read(&hi2c3,Addr,Reg+readI,1,readRes,Length,1000);
 	}
+	
 	
 	uint16_t result = (Buffer[1] << 8)+ Buffer[0];
 	
