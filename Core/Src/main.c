@@ -178,12 +178,11 @@ int main(void)
   while (1)
   {
     tickValue = HAL_GetTick();
-			LSM6DSL_AccReadXYZ(accelerationRes);
-			accelerationMagnitude = accelerationRes[0]*accelerationRes[0] + accelerationRes[1]*accelerationRes[1] + accelerationRes[2]*accelerationRes[2];
-			
-			lastTickValue = tickValue;
-			tickValue = HAL_GetTick();
-			tickValueDelta = tickValue - lastTickValue;
+		LSM6DSL_AccReadXYZ(accelerationRes);
+		accelerationMagnitude = accelerationRes[0]*accelerationRes[0] + accelerationRes[1]*accelerationRes[1] + accelerationRes[2]*accelerationRes[2];
+		lastTickValue = tickValue;
+		tickValue = HAL_GetTick();
+		tickValueDelta = tickValue - lastTickValue;
 		/* USER CODE END WHILE */
 			
     /* USER CODE BEGIN 3 */
@@ -967,6 +966,12 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 	
     TxData[0] = lastConversionResults[10] & 0xFF;
     TxData[1] = ((lastConversionResults[10] >> 8) & 0xFF );
+		TxData[2] = accelerationRes[0] & 0xFF;
+    TxData[3] = ((accelerationRes[0] >> 8)& 0xFF);
+		TxData[4] = accelerationRes[1] & 0xFF;
+    TxData[5] = ((accelerationRes[1] >> 8)& 0xFF);
+		TxData[6] = accelerationRes[2] & 0xFF;
+    TxData[7] = ((accelerationRes[2] >> 8)& 0xFF);
         /* Start the Transmission process */
     if (HAL_FDCAN_AddMessageToTxFifoQ(&hfdcan1, &TxHeader, TxData) != HAL_OK)
 		{
