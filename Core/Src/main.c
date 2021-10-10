@@ -165,18 +165,11 @@ int main(void)
 	FDCAN_Config();
 	//HAL_TIM_PWM_Start(&htim3, TIM_CHANNEL_1);
   
-	value = SENSOR_IO_Read(LSM6DSL_ACC_GYRO_I2C_ADDRESS_LOW, LSM6DSL_ACC_GYRO_CTRL3_C);
 	id = LSM6DSL_AccReadID();
-	
-	id = id + 1 -1 ;
 	LSM6DSL_AccInit(LSM6DSL_ACC_FULLSCALE_4G+LSM6DSL_ODR_6660Hz+3);
 	
 	//01001000
 	SENSOR_IO_Write(LSM6DSL_ACC_GYRO_I2C_ADDRESS_LOW, LSM6DSL_ACC_GYRO_CTRL8_XL,0b01001000);
-	
-  value = SENSOR_IO_Read(LSM6DSL_ACC_GYRO_I2C_ADDRESS_LOW, LSM6DSL_ACC_GYRO_CTRL3_C);
-	
-	HAL_GetTickPrio();
 	/* USER CODE END 2 */
 	
 	
@@ -184,18 +177,15 @@ int main(void)
   /* USER CODE BEGIN WHILE */
   while (1)
   {
-    /* USER CODE END WHILE */
-			tickValue = HAL_GetTick();
+    tickValue = HAL_GetTick();
 			LSM6DSL_AccReadXYZ(accelerationRes);
 			accelerationMagnitude = accelerationRes[0]*accelerationRes[0] + accelerationRes[1]*accelerationRes[1] + accelerationRes[2]*accelerationRes[2];
 			
 			lastTickValue = tickValue;
 			tickValue = HAL_GetTick();
 			tickValueDelta = tickValue - lastTickValue;
+		/* USER CODE END WHILE */
 			
-			if(accelerationRes[0] > 1){
-				HAL_IWDG_Refresh(&hiwdg);
-			}
     /* USER CODE BEGIN 3 */
   }
   /* USER CODE END 3 */
@@ -872,18 +862,18 @@ void SENSOR_IO_Init(void)
 
 void SENSOR_IO_Write(uint8_t Addr, uint8_t Reg, uint8_t Value){
 		if(HAL_I2C_Mem_Write(&hi2c3,Addr,Reg,1,&Value,1,1000) != HAL_ERROR){
-		HAL_IWDG_Refresh(&hiwdg);
+			//HAL_IWDG_Refresh(&hiwdg);
 	}
 	
 		if(SENSOR_IO_Read(Addr, Reg) == Value){
-			HAL_IWDG_Refresh(&hiwdg);
+			//HAL_IWDG_Refresh(&hiwdg);
 		}
 }
 uint8_t res[10] = {0,0,0,0,0,0,0,0,0,0};
 uint8_t SENSOR_IO_Read(uint8_t Addr, uint8_t Reg){
 	
 	if(HAL_I2C_Mem_Read(&hi2c3,Addr,Reg,1,res,1,1000) != HAL_ERROR){
-		HAL_IWDG_Refresh(&hiwdg);
+		//HAL_IWDG_Refresh(&hiwdg);
 	}
 	
 	return res[0];
