@@ -56,6 +56,8 @@ uint16_t 	 uhADC3ConvertedData[2];
 
 /* Variables for ADC conversion data computation to physical values */
 uint16_t   uhADCxConvertedData_Voltage_mVolt = 0;  /* Value of voltage calculated from ADC conversion data (unit: mV) */
+
+int16_t accelerationRes[3] = {0,0,0};
 /* USER CODE END PD */
 
 /* Private macro -------------------------------------------------------------*/
@@ -72,6 +74,8 @@ DMA_HandleTypeDef hdma_adc2;
 DMA_HandleTypeDef hdma_adc3;
 
 FDCAN_HandleTypeDef hfdcan1;
+
+I2C_HandleTypeDef hi2c3;
 
 IWDG_HandleTypeDef hiwdg;
 
@@ -95,6 +99,7 @@ static void MX_ADC3_Init(void);
 static void MX_TIM2_Init(void);
 static void MX_TIM3_Init(void);
 static void MX_IWDG_Init(void);
+static void MX_I2C3_Init(void);
 /* USER CODE BEGIN PFP */
 void FDCAN_Config(void);
 
@@ -113,9 +118,7 @@ void FDCAN_Config(void);
 int main(void)
 {
   /* USER CODE BEGIN 1 */
-	uint16_t AD_RES = 0;
-	uint16_t AD_RESreflow = 0;
-	int i = 0;
+
   /* USER CODE END 1 */
 
   /* MCU Configuration--------------------------------------------------------*/
@@ -144,6 +147,7 @@ int main(void)
   MX_TIM2_Init();
   MX_TIM3_Init();
   MX_IWDG_Init();
+  MX_I2C3_Init();
   /* USER CODE BEGIN 2 */
 	HAL_Delay(100);
 	HAL_ADC_Start_DMA(&hadc1, (uint32_t*)uhADCxConvertedData, 7);
@@ -152,13 +156,29 @@ int main(void)
 	
 	HAL_TIM_Base_Start_IT(&htim2);
 	FDCAN_Config();
-	HAL_TIM_PWM_Start(&htim3, TIM_CHANNEL_1);
+	//HAL_TIM_PWM_Start(&htim3, TIM_CHANNEL_1);
+	LSM6DSL_AccReadID();
+	//xxxxxx11
+	LSM6DSL_AccInit(LSM6DSL_ACC_FULLSCALE_4G+LSM6DSL_ODR_6660Hz+3);
+	
+	//01001000
+	//LSM6DSL_ACC_GYRO_I2C_ADDRESS_LOW, LSM6DSL_ACC_GYRO_CTRL8_XL,0b01001000);
+	SENSOR_IO_Write(LSM6DSL_ACC_GYRO_I2C_ADDRESS_LOW, LSM6DSL_ACC_GYRO_CTRL8_XL,0b11001000);
+	
+	//SENSOR_IO_Read(LSM6DSL_ACC_GYRO_I2C_ADDRESS_LOW,	LSM6DSL_ACC_GYRO_OUT_TEMP_L);
+	//SENSOR_IO_Read(LSM6DSL_ACC_GYRO_I2C_ADDRESS_LOW,	LSM6DSL_ACC_GYRO_OUT_TEMP_H);
   /* USER CODE END 2 */
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
   while (1)
   {
+    //tickValue = HAL_GetTick();
+		LSM6DSL_AccReadXYZ(accelerationRes);
+		//accelerationMagnitude = accelerationRes[0]*accelerationRes[0] + accelerationRes[1]*accelerationRes[1] + accelerationRes[2]*accelerationRes[2];
+		//lastTickValue = tickValue;
+		//tickValue = HAL_GetTick();
+		//tickValueDelta = tickValue - lastTickValue;
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
@@ -212,8 +232,9 @@ void SystemClock_Config(void)
   }
   /** Initializes the peripherals clocks
   */
-  PeriphClkInit.PeriphClockSelection = RCC_PERIPHCLK_ADC12|RCC_PERIPHCLK_ADC345
-                              |RCC_PERIPHCLK_FDCAN;
+  PeriphClkInit.PeriphClockSelection = RCC_PERIPHCLK_I2C3|RCC_PERIPHCLK_ADC12
+                              |RCC_PERIPHCLK_ADC345|RCC_PERIPHCLK_FDCAN;
+  PeriphClkInit.I2c3ClockSelection = RCC_I2C3CLKSOURCE_PCLK1;
   PeriphClkInit.FdcanClockSelection = RCC_FDCANCLKSOURCE_PCLK1;
   PeriphClkInit.Adc12ClockSelection = RCC_ADC12CLKSOURCE_SYSCLK;
   PeriphClkInit.Adc345ClockSelection = RCC_ADC345CLKSOURCE_SYSCLK;
@@ -526,6 +547,52 @@ static void MX_FDCAN1_Init(void)
 }
 
 /**
+  * @brief I2C3 Initialization Function
+  * @param None
+  * @retval None
+  */
+static void MX_I2C3_Init(void)
+{
+
+  /* USER CODE BEGIN I2C3_Init 0 */
+
+  /* USER CODE END I2C3_Init 0 */
+
+  /* USER CODE BEGIN I2C3_Init 1 */
+
+  /* USER CODE END I2C3_Init 1 */
+  hi2c3.Instance = I2C3;
+  hi2c3.Init.Timing = 0x00303D5B;
+  hi2c3.Init.OwnAddress1 = 0;
+  hi2c3.Init.AddressingMode = I2C_ADDRESSINGMODE_7BIT;
+  hi2c3.Init.DualAddressMode = I2C_DUALADDRESS_DISABLE;
+  hi2c3.Init.OwnAddress2 = 0;
+  hi2c3.Init.OwnAddress2Masks = I2C_OA2_NOMASK;
+  hi2c3.Init.GeneralCallMode = I2C_GENERALCALL_DISABLE;
+  hi2c3.Init.NoStretchMode = I2C_NOSTRETCH_DISABLE;
+  if (HAL_I2C_Init(&hi2c3) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /** Configure Analogue filter
+  */
+  if (HAL_I2CEx_ConfigAnalogFilter(&hi2c3, I2C_ANALOGFILTER_ENABLE) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /** Configure Digital filter
+  */
+  if (HAL_I2CEx_ConfigDigitalFilter(&hi2c3, 0) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /* USER CODE BEGIN I2C3_Init 2 */
+
+  /* USER CODE END I2C3_Init 2 */
+
+}
+
+/**
   * @brief IWDG Initialization Function
   * @param None
   * @retval None
@@ -660,13 +727,13 @@ static void MX_DMA_Init(void)
 
   /* DMA interrupt init */
   /* DMA1_Channel1_IRQn interrupt configuration */
-  HAL_NVIC_SetPriority(DMA1_Channel1_IRQn, 0, 0);
+  HAL_NVIC_SetPriority(DMA1_Channel1_IRQn, 1, 0);
   HAL_NVIC_EnableIRQ(DMA1_Channel1_IRQn);
   /* DMA1_Channel2_IRQn interrupt configuration */
-  HAL_NVIC_SetPriority(DMA1_Channel2_IRQn, 0, 0);
+  HAL_NVIC_SetPriority(DMA1_Channel2_IRQn, 2, 0);
   HAL_NVIC_EnableIRQ(DMA1_Channel2_IRQn);
   /* DMA1_Channel3_IRQn interrupt configuration */
-  HAL_NVIC_SetPriority(DMA1_Channel3_IRQn, 0, 0);
+  HAL_NVIC_SetPriority(DMA1_Channel3_IRQn, 3, 0);
   HAL_NVIC_EnableIRQ(DMA1_Channel3_IRQn);
 
 }
@@ -735,7 +802,7 @@ static void MX_GPIO_Init(void)
 }
 
 /* USER CODE BEGIN 4 */
-static void FDCAN_Config(void)
+void FDCAN_Config(void)
 {
   FDCAN_FilterTypeDef sFilterConfig;
 
@@ -773,6 +840,78 @@ static void FDCAN_Config(void)
   
 }
 
+void SENSOR_IO_Init(void)
+{
+
+  /* USER CODE BEGIN I2C3_Init 0 */
+
+  /* USER CODE END I2C3_Init 0 */
+
+  /* USER CODE BEGIN I2C3_Init 1 */
+
+  /* USER CODE END I2C3_Init 1 */
+  hi2c3.Instance = I2C3;
+  hi2c3.Init.Timing = 0x00303D5B;
+  hi2c3.Init.OwnAddress1 = 0;
+  hi2c3.Init.AddressingMode = I2C_ADDRESSINGMODE_7BIT;
+  hi2c3.Init.DualAddressMode = I2C_DUALADDRESS_DISABLE;
+  hi2c3.Init.OwnAddress2 = 0;
+  hi2c3.Init.OwnAddress2Masks = I2C_OA2_NOMASK;
+  hi2c3.Init.GeneralCallMode = I2C_GENERALCALL_DISABLE;
+  hi2c3.Init.NoStretchMode = I2C_NOSTRETCH_DISABLE;
+  if (HAL_I2C_Init(&hi2c3) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /** Configure Analogue filter
+  */
+  if (HAL_I2CEx_ConfigAnalogFilter(&hi2c3, I2C_ANALOGFILTER_ENABLE) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /** Configure Digital filter
+  */
+  if (HAL_I2CEx_ConfigDigitalFilter(&hi2c3, 0) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /* USER CODE BEGIN I2C3_Init 2 */
+
+  /* USER CODE END I2C3_Init 2 */
+
+}
+
+void SENSOR_IO_Write(uint8_t Addr, uint8_t Reg, uint8_t Value){
+		if(HAL_I2C_Mem_Write(&hi2c3,Addr,Reg,1,&Value,1,1000) != HAL_ERROR){
+			//HAL_IWDG_Refresh(&hiwdg);
+		}
+	
+		if(SENSOR_IO_Read(Addr, Reg) == Value){
+			//HAL_IWDG_Refresh(&hiwdg);
+		}
+}
+uint8_t res[10] = {0,0,0,0,0,0,0,0,0,0};
+uint8_t SENSOR_IO_Read(uint8_t Addr, uint8_t Reg){
+	
+	if(HAL_I2C_Mem_Read(&hi2c3,Addr,Reg,1,res,1,1000) != HAL_ERROR){
+		//HAL_IWDG_Refresh(&hiwdg);
+	}
+	
+	return res[0];
+}
+
+uint8_t readRes[10] = {0,0,0,0,0,0,0,0,0,0};
+uint16_t readI = 0;
+uint16_t SENSOR_IO_ReadMultiple(uint8_t Addr, uint8_t Reg, uint8_t *Buffer, uint16_t Length){
+	for(readI = 0; readI<Length; readI++){
+		Buffer[readI] = HAL_I2C_Mem_Read(&hi2c3,Addr,Reg+readI,1,readRes,Length,1000);
+	}
+	
+	
+	uint16_t result = (Buffer[1] << 8)+ Buffer[0];
+	
+	return result;
+}
 
 void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef* hadc)
 {
@@ -869,7 +1008,11 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
     TxData[0] = lastConversionResults[10] & 0xFF;
     TxData[1] = ((lastConversionResults[10] >> 8) & 0xFF ) | ((lastConversionResults[11] & 0xF )<<4);
 		TxData[2] = (lastConversionResults[11]>> 4);
-
+		TxData[3] = 0;
+    TxData[4] = 0;
+		TxData[5] = 0;
+		TxData[6] =	0;
+    TxData[7] = 0;
         /* Start the Transmission process */
     if (HAL_FDCAN_AddMessageToTxFifoQ(&hfdcan1, &TxHeader, TxData) != HAL_OK)
 		{
@@ -877,6 +1020,31 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 			Error_Handler();
 		}	
 		
+		TxHeader.Identifier = 0x104;
+		TxHeader.IdType = FDCAN_STANDARD_ID;
+		TxHeader.TxFrameType = FDCAN_DATA_FRAME;
+		TxHeader.DataLength = FDCAN_DLC_BYTES_8;
+		TxHeader.ErrorStateIndicator = FDCAN_ESI_ACTIVE;
+		TxHeader.BitRateSwitch = FDCAN_BRS_OFF;
+		TxHeader.FDFormat = FDCAN_CLASSIC_CAN;
+		TxHeader.TxEventFifoControl = FDCAN_NO_TX_EVENTS;
+		TxHeader.MessageMarker = 0;
+	
+    TxData[0] = accelerationRes[0] & 0xFF;
+    TxData[1] = ((accelerationRes[0] >> 8));
+	  TxData[2] = accelerationRes[1] & 0xFF;
+    TxData[3] = ((accelerationRes[1] >> 8));
+		TxData[4] = accelerationRes[2] & 0xFF;
+    TxData[5] = ((accelerationRes[2] >> 8));
+		TxData[6] =	0;
+    TxData[7] = 0;
+		
+        /* Start the Transmission process */
+    if (HAL_FDCAN_AddMessageToTxFifoQ(&hfdcan1, &TxHeader, TxData) != HAL_OK)
+		{
+			/* Transmission request Error */
+			Error_Handler();
+		}	
 		
 		
 
