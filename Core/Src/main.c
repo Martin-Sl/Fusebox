@@ -39,6 +39,7 @@ count to 1000
 #define ADC1NUMConversions 7
 #define ADC2NUMConversions 3
 #define ADC3NUMConversions 2
+#define DSP_EMA_I32_ALPHA(x) ( (uint16_t)(x * 65535) )
 
 uint16_t 	 lastConversionResults[12];
 
@@ -58,6 +59,7 @@ uint16_t 	 uhADC3ConvertedData[2];
 uint16_t   uhADCxConvertedData_Voltage_mVolt = 0;  /* Value of voltage calculated from ADC conversion data (unit: mV) */
 
 int16_t accelerationRes[3] = {0,0,0};
+short canbusI = 0;
 /* USER CODE END PD */
 
 /* Private macro -------------------------------------------------------------*/
@@ -82,10 +84,15 @@ IWDG_HandleTypeDef hiwdg;
 TIM_HandleTypeDef htim2;
 TIM_HandleTypeDef htim3;
 
+FDCAN_TxHeaderTypeDef TxHeaderTre;
+uint8_t TxDataTre[8];
+
 /* USER CODE BEGIN PV */
 int ADC1Conversions=0;
 int ADC2Conversions=0;
 int ADC3Conversions=0;
+unsigned char accId=0;
+int16_t accresAvg[] = {0,0,0};
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -102,6 +109,7 @@ static void MX_IWDG_Init(void);
 static void MX_I2C3_Init(void);
 /* USER CODE BEGIN PFP */
 void FDCAN_Config(void);
+int32_t dsp_ema_i32(int32_t in, int32_t average, uint16_t alpha);
 
 //static void ADC1_SELECT(int index, ADC_HandleTypeDef* hadc1);
 /* USER CODE END PFP */
@@ -146,7 +154,7 @@ int main(void)
   MX_ADC3_Init();
   MX_TIM2_Init();
   MX_TIM3_Init();
-  MX_IWDG_Init();
+  //MX_IWDG_Init();
   MX_I2C3_Init();
   /* USER CODE BEGIN 2 */
 	HAL_Delay(100);
@@ -157,14 +165,14 @@ int main(void)
 	HAL_TIM_Base_Start_IT(&htim2);
 	FDCAN_Config();
 	//HAL_TIM_PWM_Start(&htim3, TIM_CHANNEL_1);
-	LSM6DSL_AccReadID();
+	accId = LSM6DSL_AccReadID();
 	//xxxxxx11
 	LSM6DSL_AccInit(LSM6DSL_ACC_FULLSCALE_4G+LSM6DSL_ODR_6660Hz+3);
 	
 	//01001000
 	//LSM6DSL_ACC_GYRO_I2C_ADDRESS_LOW, LSM6DSL_ACC_GYRO_CTRL8_XL,0b01001000);
+	//SENSOR_IO_Write(LSM6DSL_ACC_GYRO_I2C_ADDRESS_LOW, LSM6DSL_ACC_GYRO_CTRL8_XL,0b11101100);
 	SENSOR_IO_Write(LSM6DSL_ACC_GYRO_I2C_ADDRESS_LOW, LSM6DSL_ACC_GYRO_CTRL8_XL,0b11001000);
-	
 	//SENSOR_IO_Read(LSM6DSL_ACC_GYRO_I2C_ADDRESS_LOW,	LSM6DSL_ACC_GYRO_OUT_TEMP_L);
 	//SENSOR_IO_Read(LSM6DSL_ACC_GYRO_I2C_ADDRESS_LOW,	LSM6DSL_ACC_GYRO_OUT_TEMP_H);
   /* USER CODE END 2 */
@@ -174,7 +182,12 @@ int main(void)
   while (1)
   {
     //tickValue = HAL_GetTick();
+		
+    
 		LSM6DSL_AccReadXYZ(accelerationRes);
+		accresAvg[0] = (int16_t)(dsp_ema_i32(accelerationRes[0], accresAvg[0], DSP_EMA_I32_ALPHA(0.1)));
+		accresAvg[1] = (int16_t)(dsp_ema_i32(accelerationRes[1], accresAvg[1], DSP_EMA_I32_ALPHA(0.1)));
+		accresAvg[2] = (int16_t)(dsp_ema_i32(accelerationRes[2], accresAvg[2], DSP_EMA_I32_ALPHA(0.1)));
 		//accelerationMagnitude = accelerationRes[0]*accelerationRes[0] + accelerationRes[1]*accelerationRes[1] + accelerationRes[2]*accelerationRes[2];
 		//lastTickValue = tickValue;
 		//tickValue = HAL_GetTick();
@@ -1013,36 +1026,38 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 		TxData[5] = 0;
 		TxData[6] =	0;
     TxData[7] = 0;
-        /* Start the Transmission process */
+       //  Start the Transmission process 
     if (HAL_FDCAN_AddMessageToTxFifoQ(&hfdcan1, &TxHeader, TxData) != HAL_OK)
 		{
-			/* Transmission request Error */
 			Error_Handler();
 		}	
 		
-		TxHeader.Identifier = 0x104;
-		TxHeader.IdType = FDCAN_STANDARD_ID;
-		TxHeader.TxFrameType = FDCAN_DATA_FRAME;
-		TxHeader.DataLength = FDCAN_DLC_BYTES_8;
-		TxHeader.ErrorStateIndicator = FDCAN_ESI_ACTIVE;
-		TxHeader.BitRateSwitch = FDCAN_BRS_OFF;
-		TxHeader.FDFormat = FDCAN_CLASSIC_CAN;
-		TxHeader.TxEventFifoControl = FDCAN_NO_TX_EVENTS;
-		TxHeader.MessageMarker = 0;
+		TxHeaderTre.Identifier = 0x104;
+		TxHeaderTre.IdType = FDCAN_STANDARD_ID;
+		TxHeaderTre.TxFrameType = FDCAN_DATA_FRAME;
+		TxHeaderTre.DataLength = FDCAN_DLC_BYTES_8;
+		TxHeaderTre.ErrorStateIndicator = FDCAN_ESI_ACTIVE;
+		TxHeaderTre.BitRateSwitch = FDCAN_BRS_OFF;
+		TxHeaderTre.FDFormat = FDCAN_CLASSIC_CAN;
+		TxHeaderTre.TxEventFifoControl = FDCAN_NO_TX_EVENTS;
+		TxHeaderTre.MessageMarker = 0;
 	
-    TxData[0] = accelerationRes[0] & 0xFF;
-    TxData[1] = ((accelerationRes[0] >> 8));
-	  TxData[2] = accelerationRes[1] & 0xFF;
-    TxData[3] = ((accelerationRes[1] >> 8));
-		TxData[4] = accelerationRes[2] & 0xFF;
-    TxData[5] = ((accelerationRes[2] >> 8));
-		TxData[6] =	0;
-    TxData[7] = 0;
 		
-        /* Start the Transmission process */
-    if (HAL_FDCAN_AddMessageToTxFifoQ(&hfdcan1, &TxHeader, TxData) != HAL_OK)
+
+		TxDataTre[0] = accresAvg[0] & 0xFF;
+		TxDataTre[1] = ((accresAvg[0] >> 8));
+		TxDataTre[2] = 0 + accresAvg[1] & 0xFF;
+		TxDataTre[3] = 0 + ((accresAvg[1] >> 8));
+		TxDataTre[4] = accresAvg[2] & 0xFF;
+		TxDataTre[5] = ((accresAvg[2] >> 8));
+		TxDataTre[6] = 0;
+		TxDataTre[7] = 0;
+
+		
+     //Start the Transmission process 
+    if (HAL_FDCAN_AddMessageToTxFifoQ(&hfdcan1, &TxHeaderTre, TxDataTre) != HAL_OK)
 		{
-			/* Transmission request Error */
+			
 			Error_Handler();
 		}	
 		
@@ -1073,6 +1088,17 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 		}
 }
 
+
+ 
+
+ 
+int32_t dsp_ema_i32(int32_t in, int32_t average, uint16_t alpha){
+  int64_t tmp0; //calcs must be done in 64-bit math to avoid overflow
+  tmp0 = (int64_t)in * (alpha) + (int64_t)average * (65536 - alpha);
+  return (int32_t)((tmp0 + 32768) / 65536); //scale back to 32-bit (with rounding)
+}
+
+//here is a function that uses the averaging code
 
 /* USER CODE END 4 */
 
