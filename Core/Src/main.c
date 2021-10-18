@@ -60,6 +60,7 @@ uint16_t   uhADCxConvertedData_Voltage_mVolt = 0;  /* Value of voltage calculate
 
 int16_t accelerationRes[3] = {0,0,0};
 short canbusI = 0;
+char insignificantAlternationCANBUS=0;
 /* USER CODE END PD */
 
 /* Private macro -------------------------------------------------------------*/
@@ -154,7 +155,7 @@ int main(void)
   MX_ADC3_Init();
   MX_TIM2_Init();
   MX_TIM3_Init();
-  //MX_IWDG_Init();
+  MX_IWDG_Init();
   MX_I2C3_Init();
   /* USER CODE BEGIN 2 */
 	HAL_Delay(100);
@@ -957,6 +958,7 @@ void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef* hadc)
 // Callback: timer has rolled over
 void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 {
+	insignificantAlternationCANBUS++;
 		/* Prepare Tx Header */
 		TxHeader.Identifier = 0x101;
 		TxHeader.IdType = FDCAN_STANDARD_ID;
@@ -1002,12 +1004,13 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 		TxData[6] = lastConversionResults[9] & 0xFF;
     TxData[7] = ((lastConversionResults[9] >> 8) & 0xFF );
         /* Start the Transmission process */
+    if(insignificantAlternationCANBUS%2==1){
     if (HAL_FDCAN_AddMessageToTxFifoQ(&hfdcan1, &TxHeader, TxData) != HAL_OK)
 		{
 			/* Transmission request Error */
 			Error_Handler();
 		}	
-		
+    }
 		TxHeader.Identifier = 0x103;
 		TxHeader.IdType = FDCAN_STANDARD_ID;
 		TxHeader.TxFrameType = FDCAN_DATA_FRAME;
@@ -1027,11 +1030,15 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 		TxData[6] =	0;
     TxData[7] = 0;
        //  Start the Transmission process 
-    if (HAL_FDCAN_AddMessageToTxFifoQ(&hfdcan1, &TxHeader, TxData) != HAL_OK)
-		{
-			Error_Handler();
-		}	
-		
+    	if(insignificantAlternationCANBUS%2==0){
+
+    	if (HAL_FDCAN_AddMessageToTxFifoQ(&hfdcan1, &TxHeader, TxData) != HAL_OK)
+    			{
+    				Error_Handler();
+    			}
+    	}
+
+
 		TxHeaderTre.Identifier = 0x104;
 		TxHeaderTre.IdType = FDCAN_STANDARD_ID;
 		TxHeaderTre.TxFrameType = FDCAN_DATA_FRAME;
@@ -1046,8 +1053,8 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 
 		TxDataTre[0] = accresAvg[0] & 0xFF;
 		TxDataTre[1] = ((accresAvg[0] >> 8));
-		TxDataTre[2] = 0 + accresAvg[1] & 0xFF;
-		TxDataTre[3] = 0 + ((accresAvg[1] >> 8));
+		TxDataTre[2] = accresAvg[1] & 0xFF;
+		TxDataTre[3] = ((accresAvg[1] >> 8));
 		TxDataTre[4] = accresAvg[2] & 0xFF;
 		TxDataTre[5] = ((accresAvg[2] >> 8));
 		TxDataTre[6] = 0;

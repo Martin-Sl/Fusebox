@@ -1,0 +1,10 @@
+lsm6dsl.c:84:6:LSM6DSL_AccInit	16	static
+lsm6dsl.c:111:6:LSM6DSL_AccDeInit	8	static
+lsm6dsl.c:132:9:LSM6DSL_AccReadID	8	static
+lsm6dsl.c:144:6:LSM6DSL_AccLowPower	16	static
+lsm6dsl.c:176:6:LSM6DSL_AccReadXYZ	24	static
+lsm6dsl.c:252:6:LSM6DSL_GyroInit	16	static
+lsm6dsl.c:280:6:LSM6DSL_GyroDeInit	8	static
+lsm6dsl.c:301:9:LSM6DSL_GyroReadID	8	static
+lsm6dsl.c:313:6:LSM6DSL_GyroLowPower	16	static
+lsm6dsl.c:340:6:LSM6DSL_GyroReadXYZAngRate	40	static
