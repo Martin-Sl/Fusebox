@@ -156,6 +156,12 @@ int main(void)
   
   /* USER CODE BEGIN 2 */
 	SENSOR_IO_Init();
+	
+	//SET AUX (LEFT FAN) OFF
+	HAL_GPIO_WritePin(GPIOF,GPIO_PIN_1,GPIO_PIN_RESET);
+	//SET ETC (RIGHT FAN) OFF
+	HAL_GPIO_WritePin(GPIOB,GPIO_PIN_10,GPIO_PIN_RESET);
+	
 	HAL_Delay(100);
 	HAL_ADC_Start_DMA(&hadc1, (uint32_t*)uhADCxConvertedData, 7);
 	HAL_ADC_Start_DMA(&hadc2, (uint32_t*)uhADC2ConvertedData, 3);
@@ -169,7 +175,14 @@ int main(void)
 	LSM6DSL_AccInit(LSM6DSL_ACC_FULLSCALE_4G+LSM6DSL_ODR_6660Hz+3);
 	
 	//01001000
-	SENSOR_IO_Write(LSM6DSL_ACC_GYRO_I2C_ADDRESS_LOW, LSM6DSL_ACC_GYRO_CTRL8_XL,0b01001000);
+	//LOW PASS
+	SENSOR_IO_Write(LSM6DSL_ACC_GYRO_I2C_ADDRESS_LOW, LSM6DSL_ACC_GYRO_CTRL8_XL,0b11001000);
+	//HIGH PASS
+	//SENSOR_IO_Write(LSM6DSL_ACC_GYRO_I2C_ADDRESS_LOW, LSM6DSL_ACC_GYRO_CTRL8_XL,0b11101100);
+	//SET AUX (LEFT FAN) OFF
+	HAL_GPIO_WritePin(GPIOF,GPIO_PIN_1,GPIO_PIN_RESET);
+	//SET ETC (RIGHT FAN) OFF
+	HAL_GPIO_WritePin(GPIOB,GPIO_PIN_10,GPIO_PIN_RESET);
 	/* USER CODE END 2 */
 	
 	
@@ -177,12 +190,12 @@ int main(void)
   /* USER CODE BEGIN WHILE */
   while (1)
   {
-    tickValue = HAL_GetTick();
+    //tickValue = HAL_GetTick();
 		LSM6DSL_AccReadXYZ(accelerationRes);
-		accelerationMagnitude = accelerationRes[0]*accelerationRes[0] + accelerationRes[1]*accelerationRes[1] + accelerationRes[2]*accelerationRes[2];
-		lastTickValue = tickValue;
-		tickValue = HAL_GetTick();
-		tickValueDelta = tickValue - lastTickValue;
+		//accelerationMagnitude = accelerationRes[0]*accelerationRes[0] + accelerationRes[1]*accelerationRes[1] + accelerationRes[2]*accelerationRes[2];
+		//lastTickValue = tickValue;
+		//tickValue = HAL_GetTick();
+		//tickValueDelta = tickValue - lastTickValue;
 		/* USER CODE END WHILE */
 			
     /* USER CODE BEGIN 3 */
@@ -920,8 +933,8 @@ void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef* hadc)
 void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 {
 	
-	//CH3 - AUX - single fan 		index 4
-	//CH4 - ETC - single fan	 	index 5
+	//CH3 - AUX - single fan 		index 4	 FAN LEFT
+	//CH4 - ETC - single fan	 	index 5  FAN RIGHT
 	//CH5 - SCRET - FANS ON 		index 6
 	//CS1 ADC 2 IN 4				ID7
 	//BOTH FANS ADC 2 IN 11	ID9
@@ -929,7 +942,7 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 	
 		
 		/* Prepare Tx Header */
-		TxHeader.Identifier = 0x104;
+		TxHeader.Identifier = 0x105;
 		TxHeader.IdType = FDCAN_STANDARD_ID;
 		TxHeader.TxFrameType = FDCAN_DATA_FRAME;
 		TxHeader.DataLength = FDCAN_DLC_BYTES_8;
@@ -954,7 +967,7 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 			Error_Handler();
 		}	
 		
-		TxHeader.Identifier = 0x105;
+		TxHeader.Identifier = 0x106;
 		TxHeader.IdType = FDCAN_STANDARD_ID;
 		TxHeader.TxFrameType = FDCAN_DATA_FRAME;
 		TxHeader.DataLength = FDCAN_DLC_BYTES_8;
@@ -967,11 +980,11 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
     TxData[0] = lastConversionResults[10] & 0xFF;
     TxData[1] = ((lastConversionResults[10] >> 8) & 0xFF );
 		TxData[2] = accelerationRes[0] & 0xFF;
-    TxData[3] = ((accelerationRes[0] >> 8)& 0xFF);
+    TxData[3] = ((accelerationRes[0] >> 8));
 		TxData[4] = accelerationRes[1] & 0xFF;
-    TxData[5] = ((accelerationRes[1] >> 8)& 0xFF);
+    TxData[5] = ((accelerationRes[1] >> 8));
 		TxData[6] = accelerationRes[2] & 0xFF;
-    TxData[7] = ((accelerationRes[2] >> 8)& 0xFF);
+    TxData[7] = ((accelerationRes[2] >> 8));
         /* Start the Transmission process */
     if (HAL_FDCAN_AddMessageToTxFifoQ(&hfdcan1, &TxHeader, TxData) != HAL_OK)
 		{
@@ -993,6 +1006,11 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 		else{
 			//Refresh watchdog
 			HAL_IWDG_Refresh(&hiwdg);
+			//Temporary weirdness fix
+			//SET AUX (LEFT FAN) OFF
+			HAL_GPIO_WritePin(GPIOF,GPIO_PIN_1,GPIO_PIN_RESET);
+			//SET ETC (RIGHT FAN) OFF
+			HAL_GPIO_WritePin(GPIOB,GPIO_PIN_10,GPIO_PIN_RESET);
 		}
 }
 
