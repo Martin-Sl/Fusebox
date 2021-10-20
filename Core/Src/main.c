@@ -37,7 +37,7 @@ count to 1000
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
 #define ADC1NUMConversions 7
-#define ADC2NUMConversions 3
+#define ADC2NUMConversions 4
 #define ADC3NUMConversions 2
 #define DSP_EMA_I32_ALPHA(x) ( (uint16_t)(x * 65535) )
 
@@ -159,6 +159,11 @@ int main(void)
   MX_IWDG_Init();
   MX_I2C3_Init();
   /* USER CODE BEGIN 2 */
+  //SET AUX (LEFT FAN) OFF
+  	HAL_GPIO_WritePin(GPIOF,GPIO_PIN_1,GPIO_PIN_SET);
+  	//SET ETC (RIGHT FAN) OFF
+  	HAL_GPIO_WritePin(GPIOB,GPIO_PIN_10,GPIO_PIN_SET);
+
 	HAL_Delay(100);
 	HAL_ADC_Start_DMA(&hadc1, (uint32_t*)uhADCxConvertedData, 7);
 	HAL_ADC_Start_DMA(&hadc2, (uint32_t*)uhADC2ConvertedData, 3);
@@ -367,7 +372,9 @@ static void MX_ADC1_Init(void)
     Error_Handler();
   }
   /* USER CODE BEGIN ADC1_Init 2 */
-
+//CH3 - AUX - single fan 		index 4
+//CH4 - ETC - single fan	 	index 5
+//CH5 - SCRET - FANS ON 		index 6
   /* USER CODE END ADC1_Init 2 */
 
 }
@@ -400,7 +407,7 @@ static void MX_ADC2_Init(void)
   hadc2.Init.EOCSelection = ADC_EOC_SEQ_CONV;
   hadc2.Init.LowPowerAutoWait = DISABLE;
   hadc2.Init.ContinuousConvMode = ENABLE;
-  hadc2.Init.NbrOfConversion = 3;
+  hadc2.Init.NbrOfConversion = 4;
   hadc2.Init.DiscontinuousConvMode = DISABLE;
   hadc2.Init.ExternalTrigConv = ADC_SOFTWARE_START;
   hadc2.Init.ExternalTrigConvEdge = ADC_EXTERNALTRIGCONVEDGE_NONE;
@@ -439,7 +446,18 @@ static void MX_ADC2_Init(void)
   {
     Error_Handler();
   }
+  /** Configure Regular Channel
+  */
+  sConfig.Channel = ADC_CHANNEL_15;
+  sConfig.Rank = ADC_REGULAR_RANK_4;
+  if (HAL_ADC_ConfigChannel(&hadc2, &sConfig) != HAL_OK)
+  {
+    Error_Handler();
+  }
   /* USER CODE BEGIN ADC2_Init 2 */
+	//CS1 ADC 2 IN 4				ID7
+	//BOTH FANS ADC 2 IN 11	ID9
+	//FUEL ADC 2 IN 15			ID10
 
   /* USER CODE END ADC2_Init 2 */
 
@@ -769,19 +787,16 @@ static void MX_GPIO_Init(void)
   __HAL_RCC_GPIOB_CLK_ENABLE();
 
   /*Configure GPIO pin Output Level */
-  HAL_GPIO_WritePin(GPIOF, GPIO_PIN_0, GPIO_PIN_RESET);
-
-  /*Configure GPIO pin Output Level */
-  HAL_GPIO_WritePin(GPIOF, GPIO_PIN_1, GPIO_PIN_SET);
+  HAL_GPIO_WritePin(GPIOF, GPIO_PIN_0|GPIO_PIN_1, GPIO_PIN_RESET);
 
   /*Configure GPIO pin Output Level */
   HAL_GPIO_WritePin(GPIOA, GPIO_PIN_1, GPIO_PIN_RESET);
 
   /*Configure GPIO pin Output Level */
-  HAL_GPIO_WritePin(GPIOB, GPIO_PIN_10, GPIO_PIN_SET);
+  HAL_GPIO_WritePin(GPIOB, GPIO_PIN_10|GPIO_PIN_11, GPIO_PIN_RESET);
 
   /*Configure GPIO pin Output Level */
-  HAL_GPIO_WritePin(GPIOB, GPIO_PIN_11|GPIO_PIN_12, GPIO_PIN_RESET);
+  HAL_GPIO_WritePin(GPIOB, GPIO_PIN_12, GPIO_PIN_SET);
 
   /*Configure GPIO pin Output Level */
   HAL_GPIO_WritePin(GPIOC, GPIO_PIN_12, GPIO_PIN_RESET);
@@ -962,141 +977,85 @@ void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef* hadc)
 // Callback: timer has rolled over
 void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 {
-	insignificantAlternationCANBUS++;
-		/* Prepare Tx Header */
-		TxHeader.Identifier = 0x101;
-		TxHeader.IdType = FDCAN_STANDARD_ID;
-		TxHeader.TxFrameType = FDCAN_DATA_FRAME;
-		TxHeader.DataLength = FDCAN_DLC_BYTES_8;
-		TxHeader.ErrorStateIndicator = FDCAN_ESI_ACTIVE;
-		TxHeader.BitRateSwitch = FDCAN_BRS_OFF;
-		TxHeader.FDFormat = FDCAN_CLASSIC_CAN;
-		TxHeader.TxEventFifoControl = FDCAN_NO_TX_EVENTS;
-		TxHeader.MessageMarker = 0;
-	
-    TxData[0] = averageConversionResults[0] & 0xFF;
-    TxData[1] = ((averageConversionResults[0] >> 8) & 0xFF ) | ((averageConversionResults[1] & 0xF )<<4);
-		TxData[2] = (averageConversionResults[1]>> 4);
-		TxData[3] = averageConversionResults[2] & 0xFF;
-    TxData[4] = ((averageConversionResults[2] >> 8) & 0xFF ) | ((averageConversionResults[3] & 0xF )<<4);
-		TxData[5] = (averageConversionResults[3]>> 4);
-		TxData[6] = averageConversionResults[4] & 0xFF;
-    TxData[7] = ((averageConversionResults[4] >> 8) & 0xFF );
-        /* Start the Transmission process */
-    if (HAL_FDCAN_AddMessageToTxFifoQ(&hfdcan1, &TxHeader, TxData) != HAL_OK)
-		{
-			/* Transmission request Error */
-			Error_Handler();
-		}	
-		
-		TxHeader.Identifier = 0x102;
-		TxHeader.IdType = FDCAN_STANDARD_ID;
-		TxHeader.TxFrameType = FDCAN_DATA_FRAME;
-		TxHeader.DataLength = FDCAN_DLC_BYTES_8;
-		TxHeader.ErrorStateIndicator = FDCAN_ESI_ACTIVE;
-		TxHeader.BitRateSwitch = FDCAN_BRS_OFF;
-		TxHeader.FDFormat = FDCAN_CLASSIC_CAN;
-		TxHeader.TxEventFifoControl = FDCAN_NO_TX_EVENTS;
-		TxHeader.MessageMarker = 0;
-	
-    TxData[0] = averageConversionResults[5] & 0xFF;
-    TxData[1] = ((averageConversionResults[5] >> 8) & 0xFF ) | ((averageConversionResults[6] & 0xF )<<4);
-		TxData[2] = (averageConversionResults[6]>> 4);
-		TxData[3] = averageConversionResults[7] & 0xFF;
-    TxData[4] = ((averageConversionResults[7] >> 8) & 0xFF ) | ((averageConversionResults[8] & 0xF )<<4);
-		TxData[5] = (averageConversionResults[8]>> 4);
-		TxData[6] = averageConversionResults[9] & 0xFF;
-    TxData[7] = ((averageConversionResults[9] >> 8) & 0xFF );
-        /* Start the Transmission process */
-    if(insignificantAlternationCANBUS%2==1){
-    if (HAL_FDCAN_AddMessageToTxFifoQ(&hfdcan1, &TxHeader, TxData) != HAL_OK)
-		{
-			/* Transmission request Error */
-			Error_Handler();
-		}	
-    }
-		TxHeader.Identifier = 0x103;
-		TxHeader.IdType = FDCAN_STANDARD_ID;
-		TxHeader.TxFrameType = FDCAN_DATA_FRAME;
-		TxHeader.DataLength = FDCAN_DLC_BYTES_8;
-		TxHeader.ErrorStateIndicator = FDCAN_ESI_ACTIVE;
-		TxHeader.BitRateSwitch = FDCAN_BRS_OFF;
-		TxHeader.FDFormat = FDCAN_CLASSIC_CAN;
-		TxHeader.TxEventFifoControl = FDCAN_NO_TX_EVENTS;
-		TxHeader.MessageMarker = 0;
-	
-    TxData[0] = averageConversionResults[10] & 0xFF;
-    TxData[1] = ((averageConversionResults[10] >> 8) & 0xFF ) | ((averageConversionResults[11] & 0xF )<<4);
-		TxData[2] = (averageConversionResults[11]>> 4);
-		TxData[3] = 0;
-    TxData[4] = 0;
-		TxData[5] = 0;
-		TxData[6] =	0;
-    TxData[7] = 0;
-       //  Start the Transmission process 
-    	if(insignificantAlternationCANBUS%2==0){
-
-    	if (HAL_FDCAN_AddMessageToTxFifoQ(&hfdcan1, &TxHeader, TxData) != HAL_OK)
-    			{
-    				Error_Handler();
-    			}
-    	}
-
-
-		TxHeaderTre.Identifier = 0x104;
-		TxHeaderTre.IdType = FDCAN_STANDARD_ID;
-		TxHeaderTre.TxFrameType = FDCAN_DATA_FRAME;
-		TxHeaderTre.DataLength = FDCAN_DLC_BYTES_8;
-		TxHeaderTre.ErrorStateIndicator = FDCAN_ESI_ACTIVE;
-		TxHeaderTre.BitRateSwitch = FDCAN_BRS_OFF;
-		TxHeaderTre.FDFormat = FDCAN_CLASSIC_CAN;
-		TxHeaderTre.TxEventFifoControl = FDCAN_NO_TX_EVENTS;
-		TxHeaderTre.MessageMarker = 0;
-	
+	//CH3 - AUX - single fan 		index 4	 FAN LEFT
+		//CH4 - ETC - single fan	 	index 5  FAN RIGHT
+		//CH5 - SCRET - FANS ON 		index 6
+		//CS1 ADC 2 IN 4				ID7
+		//BOTH FANS ADC 2 IN 11	ID9
+		//FUEL ADC 2 IN 15			ID10
 		
 
-		TxDataTre[0] = accresAvg[0] & 0xFF;
-		TxDataTre[1] = ((accresAvg[0] >> 8));
-		TxDataTre[2] = accresAvg[1] & 0xFF;
-		TxDataTre[3] = ((accresAvg[1] >> 8));
-		TxDataTre[4] = accresAvg[2] & 0xFF;
-		TxDataTre[5] = ((accresAvg[2] >> 8));
-		TxDataTre[6] = 0;
-		TxDataTre[7] = 0;
-
+			/* Prepare Tx Header */
+			TxHeader.Identifier = 0x105;
+			TxHeader.IdType = FDCAN_STANDARD_ID;
+			TxHeader.TxFrameType = FDCAN_DATA_FRAME;
+			TxHeader.DataLength = FDCAN_DLC_BYTES_8;
+			TxHeader.ErrorStateIndicator = FDCAN_ESI_ACTIVE;
+			TxHeader.BitRateSwitch = FDCAN_BRS_OFF;
+			TxHeader.FDFormat = FDCAN_CLASSIC_CAN;
+			TxHeader.TxEventFifoControl = FDCAN_NO_TX_EVENTS;
+			TxHeader.MessageMarker = 0;
 		
-     //Start the Transmission process 
-    if (HAL_FDCAN_AddMessageToTxFifoQ(&hfdcan1, &TxHeaderTre, TxDataTre) != HAL_OK)
-		{
-			
-			Error_Handler();
-		}	
-		
-		
-
-		
-		
-		HAL_FDCAN_GetErrorCounters(&hfdcan1, &errorCounter);
-		HAL_FDCAN_IsRestrictedOperationMode(&hfdcan1);
-		HAL_FDCAN_GetProtocolStatus(&hfdcan1, &protocolStatus);
-		
-		if(protocolStatus.BusOff==1){
-			HAL_FDCAN_ExitRestrictedOperationMode(&hfdcan1);
-			if (HAL_FDCAN_Start(&hfdcan1) != HAL_OK)
+	    TxData[0] = averageConversionResults[4] & 0xFF;
+	    TxData[1] = ((averageConversionResults[4] >> 8) & 0xFF ) | ((averageConversionResults[5] & 0xF )<<4);
+			TxData[2] = (averageConversionResults[5]>> 4);
+			TxData[3] = averageConversionResults[6] & 0xFF;
+	    TxData[4] = ((averageConversionResults[6] >> 8) & 0xFF ) | ((averageConversionResults[7] & 0xF )<<4);
+			TxData[5] = (averageConversionResults[7]>> 4);
+			TxData[6] = averageConversionResults[9] & 0xFF;
+	    TxData[7] = ((averageConversionResults[9] >> 8) & 0xFF );
+	        /* Start the Transmission process */
+	    if (HAL_FDCAN_AddMessageToTxFifoQ(&hfdcan1, &TxHeader, TxData) != HAL_OK)
 			{
+				/* Transmission request Error */
 				Error_Handler();
 			}
-		}
-		else{
-			if(	ADC1Conversions > 0 && 	ADC2Conversions > 0 && 	ADC3Conversions > 0){
-				HAL_IWDG_Refresh(&hiwdg);
-				ADC1Conversions = 0;
-				ADC2Conversions = 0;
-				ADC3Conversions = 0;
+			
+			TxHeader.Identifier = 0x106;
+			TxHeader.IdType = FDCAN_STANDARD_ID;
+			TxHeader.TxFrameType = FDCAN_DATA_FRAME;
+			TxHeader.DataLength = FDCAN_DLC_BYTES_8;
+			TxHeader.ErrorStateIndicator = FDCAN_ESI_ACTIVE;
+			TxHeader.BitRateSwitch = FDCAN_BRS_OFF;
+			TxHeader.FDFormat = FDCAN_CLASSIC_CAN;
+			TxHeader.TxEventFifoControl = FDCAN_NO_TX_EVENTS;
+			TxHeader.MessageMarker = 0;
+		
+	    TxData[0] = averageConversionResults[10] & 0xFF;
+	    TxData[1] = ((averageConversionResults[10] >> 8) & 0xFF );
+			TxData[2] = accelerationRes[0] & 0xFF;
+	    TxData[3] = ((accelerationRes[0] >> 8));
+			TxData[4] = accelerationRes[1] & 0xFF;
+	    TxData[5] = ((accelerationRes[1] >> 8));
+			TxData[6] = accelerationRes[2] & 0xFF;
+	    TxData[7] = ((accelerationRes[2] >> 8));
+	        /* Start the Transmission process */
+	    if (HAL_FDCAN_AddMessageToTxFifoQ(&hfdcan1, &TxHeader, TxData) != HAL_OK)
+			{
+				/* Transmission request Error */
+				Error_Handler();
 			}
-			
-			
-		}
+
+			HAL_FDCAN_GetErrorCounters(&hfdcan1, &errorCounter);
+			HAL_FDCAN_IsRestrictedOperationMode(&hfdcan1);
+			HAL_FDCAN_GetProtocolStatus(&hfdcan1, &protocolStatus);
+
+			if(protocolStatus.BusOff==1){
+				HAL_FDCAN_ExitRestrictedOperationMode(&hfdcan1);
+				if (HAL_FDCAN_Start(&hfdcan1) != HAL_OK)
+				{
+					Error_Handler();
+				}
+			}
+			else{
+				//Refresh watchdog
+				HAL_IWDG_Refresh(&hiwdg);
+				//Temporary weirdness fix
+				//SET AUX (LEFT FAN) OFF
+				HAL_GPIO_WritePin(GPIOF,GPIO_PIN_1,GPIO_PIN_SET);
+				//SET ETC (RIGHT FAN) OFF
+				HAL_GPIO_WritePin(GPIOB,GPIO_PIN_10,GPIO_PIN_SET);
+			}
 }
 
 
