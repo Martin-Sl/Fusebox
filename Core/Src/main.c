@@ -542,8 +542,8 @@ static void MX_FDCAN1_Init(void)
   hfdcan1.Init.ProtocolException = DISABLE;
   hfdcan1.Init.NominalPrescaler = 2;
   hfdcan1.Init.NominalSyncJumpWidth = 1;
-  hfdcan1.Init.NominalTimeSeg1 = 5;
-  hfdcan1.Init.NominalTimeSeg2 = 2;
+  hfdcan1.Init.NominalTimeSeg1 = 6;
+  hfdcan1.Init.NominalTimeSeg2 = 1;
   hfdcan1.Init.DataPrescaler = 1;
   hfdcan1.Init.DataSyncJumpWidth = 1;
   hfdcan1.Init.DataTimeSeg1 = 6;
@@ -1085,9 +1085,11 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 			if (HAL_FDCAN_Start(&hfdcan1) != HAL_OK)
 			{
 				Error_Handler();
+
 			}
 		}
 		else{
+			HAL_IWDG_Refresh(&hiwdg);
 			if(	ADC1Conversions > 0 && 	ADC2Conversions > 0 && 	ADC3Conversions > 0){
 				HAL_IWDG_Refresh(&hiwdg);
 				ADC1Conversions = 0;
