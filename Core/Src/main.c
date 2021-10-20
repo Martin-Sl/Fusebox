@@ -42,6 +42,7 @@ count to 1000
 #define DSP_EMA_I32_ALPHA(x) ( (uint16_t)(x * 65535) )
 
 uint16_t 	 lastConversionResults[12];
+uint16_t 	 averageConversionResults[12];
 
 uint8_t ubKeyNumber = 0x0;
 FDCAN_RxHeaderTypeDef RxHeader;
@@ -933,18 +934,21 @@ void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef* hadc)
 		if(hadc == &hadc1){
 			for(i=0; i<ADC1NUMConversions; i++){
 				lastConversionResults[i]=uhADCxConvertedData[i];
+				averageConversionResults[i] = (int16_t)(dsp_ema_i32(lastConversionResults[i], averageConversionResults[i], DSP_EMA_I32_ALPHA(0.1)));
 			}
 			ADC1Conversions++;
 		}
 		else if(hadc == &hadc3){
 			for(i=0; i<ADC3NUMConversions; i++){
 				lastConversionResults[i+ADC1NUMConversions]=uhADC3ConvertedData[i];
+				averageConversionResults[i+ADC1NUMConversions] = (int16_t)(dsp_ema_i32(lastConversionResults[i+ADC1NUMConversions], averageConversionResults[i+ADC1NUMConversions], DSP_EMA_I32_ALPHA(0.1)));
 			}
 			ADC3Conversions++;
 		}
 		else if(hadc == &hadc2){
 			for(i=0; i<ADC2NUMConversions; i++){
 				lastConversionResults[i+ADC3NUMConversions+ADC1NUMConversions]=uhADC2ConvertedData[i];
+				averageConversionResults[i+ADC1NUMConversions+ADC3NUMConversions] = (int16_t)(dsp_ema_i32(lastConversionResults[i+ADC1NUMConversions+ADC3NUMConversions], averageConversionResults[i+ADC1NUMConversions+ADC3NUMConversions], DSP_EMA_I32_ALPHA(0.1)));
 			}
 			ADC2Conversions++;
 		}
@@ -970,14 +974,14 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 		TxHeader.TxEventFifoControl = FDCAN_NO_TX_EVENTS;
 		TxHeader.MessageMarker = 0;
 	
-    TxData[0] = lastConversionResults[0] & 0xFF;
-    TxData[1] = ((lastConversionResults[0] >> 8) & 0xFF ) | ((lastConversionResults[1] & 0xF )<<4);
-		TxData[2] = (lastConversionResults[1]>> 4);
-		TxData[3] = lastConversionResults[2] & 0xFF;
-    TxData[4] = ((lastConversionResults[2] >> 8) & 0xFF ) | ((lastConversionResults[3] & 0xF )<<4);
-		TxData[5] = (lastConversionResults[3]>> 4);
-		TxData[6] = lastConversionResults[4] & 0xFF;
-    TxData[7] = ((lastConversionResults[4] >> 8) & 0xFF );
+    TxData[0] = averageConversionResults[0] & 0xFF;
+    TxData[1] = ((averageConversionResults[0] >> 8) & 0xFF ) | ((averageConversionResults[1] & 0xF )<<4);
+		TxData[2] = (averageConversionResults[1]>> 4);
+		TxData[3] = averageConversionResults[2] & 0xFF;
+    TxData[4] = ((averageConversionResults[2] >> 8) & 0xFF ) | ((averageConversionResults[3] & 0xF )<<4);
+		TxData[5] = (averageConversionResults[3]>> 4);
+		TxData[6] = averageConversionResults[4] & 0xFF;
+    TxData[7] = ((averageConversionResults[4] >> 8) & 0xFF );
         /* Start the Transmission process */
     if (HAL_FDCAN_AddMessageToTxFifoQ(&hfdcan1, &TxHeader, TxData) != HAL_OK)
 		{
@@ -995,14 +999,14 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 		TxHeader.TxEventFifoControl = FDCAN_NO_TX_EVENTS;
 		TxHeader.MessageMarker = 0;
 	
-    TxData[0] = lastConversionResults[5] & 0xFF;
-    TxData[1] = ((lastConversionResults[5] >> 8) & 0xFF ) | ((lastConversionResults[6] & 0xF )<<4);
-		TxData[2] = (lastConversionResults[6]>> 4);
-		TxData[3] = lastConversionResults[7] & 0xFF;
-    TxData[4] = ((lastConversionResults[7] >> 8) & 0xFF ) | ((lastConversionResults[8] & 0xF )<<4);
-		TxData[5] = (lastConversionResults[8]>> 4);
-		TxData[6] = lastConversionResults[9] & 0xFF;
-    TxData[7] = ((lastConversionResults[9] >> 8) & 0xFF );
+    TxData[0] = averageConversionResults[5] & 0xFF;
+    TxData[1] = ((averageConversionResults[5] >> 8) & 0xFF ) | ((averageConversionResults[6] & 0xF )<<4);
+		TxData[2] = (averageConversionResults[6]>> 4);
+		TxData[3] = averageConversionResults[7] & 0xFF;
+    TxData[4] = ((averageConversionResults[7] >> 8) & 0xFF ) | ((averageConversionResults[8] & 0xF )<<4);
+		TxData[5] = (averageConversionResults[8]>> 4);
+		TxData[6] = averageConversionResults[9] & 0xFF;
+    TxData[7] = ((averageConversionResults[9] >> 8) & 0xFF );
         /* Start the Transmission process */
     if(insignificantAlternationCANBUS%2==1){
     if (HAL_FDCAN_AddMessageToTxFifoQ(&hfdcan1, &TxHeader, TxData) != HAL_OK)
@@ -1021,9 +1025,9 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 		TxHeader.TxEventFifoControl = FDCAN_NO_TX_EVENTS;
 		TxHeader.MessageMarker = 0;
 	
-    TxData[0] = lastConversionResults[10] & 0xFF;
-    TxData[1] = ((lastConversionResults[10] >> 8) & 0xFF ) | ((lastConversionResults[11] & 0xF )<<4);
-		TxData[2] = (lastConversionResults[11]>> 4);
+    TxData[0] = averageConversionResults[10] & 0xFF;
+    TxData[1] = ((averageConversionResults[10] >> 8) & 0xFF ) | ((averageConversionResults[11] & 0xF )<<4);
+		TxData[2] = (averageConversionResults[11]>> 4);
 		TxData[3] = 0;
     TxData[4] = 0;
 		TxData[5] = 0;
