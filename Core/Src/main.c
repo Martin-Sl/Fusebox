@@ -86,9 +86,6 @@ IWDG_HandleTypeDef hiwdg;
 TIM_HandleTypeDef htim2;
 TIM_HandleTypeDef htim3;
 
-FDCAN_TxHeaderTypeDef TxHeaderTre;
-uint8_t TxDataTre[8];
-
 /* USER CODE BEGIN PV */
 int ADC1Conversions=0;
 int ADC2Conversions=0;
@@ -160,11 +157,11 @@ int main(void)
   MX_I2C3_Init();
   /* USER CODE BEGIN 2 */
   //SET AUX (LEFT FAN) OFF
-  	HAL_GPIO_WritePin(GPIOF,GPIO_PIN_1,GPIO_PIN_SET);
+  	HAL_GPIO_WritePin(FAN_LEFT_CTRL_GPIO_Port,FAN_LEFT_CTRL_Pin,GPIO_PIN_RESET);
   	//SET ETC (RIGHT FAN) OFF
-  	HAL_GPIO_WritePin(GPIOB,GPIO_PIN_10,GPIO_PIN_SET);
+  	HAL_GPIO_WritePin(FAN_RIGHT_CTRL_GPIO_Port,FAN_RIGHT_CTRL_Pin,GPIO_PIN_RESET);
 
-	HAL_Delay(100);
+	HAL_Delay(10);
 	HAL_ADC_Start_DMA(&hadc1, (uint32_t*)uhADCxConvertedData, 7);
 	HAL_ADC_Start_DMA(&hadc2, (uint32_t*)uhADC2ConvertedData, 3);
 	HAL_ADC_Start_DMA(&hadc3, (uint32_t*)uhADC3ConvertedData, 2);
@@ -407,7 +404,7 @@ static void MX_ADC2_Init(void)
   hadc2.Init.EOCSelection = ADC_EOC_SEQ_CONV;
   hadc2.Init.LowPowerAutoWait = DISABLE;
   hadc2.Init.ContinuousConvMode = ENABLE;
-  hadc2.Init.NbrOfConversion = 4;
+  hadc2.Init.NbrOfConversion = 3;
   hadc2.Init.DiscontinuousConvMode = DISABLE;
   hadc2.Init.ExternalTrigConv = ADC_SOFTWARE_START;
   hadc2.Init.ExternalTrigConvEdge = ADC_EXTERNALTRIGCONVEDGE_NONE;
@@ -442,14 +439,6 @@ static void MX_ADC2_Init(void)
   */
   sConfig.Channel = ADC_CHANNEL_11;
   sConfig.Rank = ADC_REGULAR_RANK_3;
-  if (HAL_ADC_ConfigChannel(&hadc2, &sConfig) != HAL_OK)
-  {
-    Error_Handler();
-  }
-  /** Configure Regular Channel
-  */
-  sConfig.Channel = ADC_CHANNEL_15;
-  sConfig.Rank = ADC_REGULAR_RANK_4;
   if (HAL_ADC_ConfigChannel(&hadc2, &sConfig) != HAL_OK)
   {
     Error_Handler();
@@ -787,22 +776,19 @@ static void MX_GPIO_Init(void)
   __HAL_RCC_GPIOB_CLK_ENABLE();
 
   /*Configure GPIO pin Output Level */
-  HAL_GPIO_WritePin(GPIOF, GPIO_PIN_0|GPIO_PIN_1, GPIO_PIN_RESET);
+  HAL_GPIO_WritePin(GPIOF, GPIO_PIN_0|FAN_LEFT_CTRL_Pin, GPIO_PIN_RESET);
 
   /*Configure GPIO pin Output Level */
   HAL_GPIO_WritePin(GPIOA, GPIO_PIN_1, GPIO_PIN_RESET);
 
   /*Configure GPIO pin Output Level */
-  HAL_GPIO_WritePin(GPIOB, GPIO_PIN_10|GPIO_PIN_11, GPIO_PIN_RESET);
-
-  /*Configure GPIO pin Output Level */
-  HAL_GPIO_WritePin(GPIOB, GPIO_PIN_12, GPIO_PIN_SET);
+  HAL_GPIO_WritePin(GPIOB, FAN_RIGHT_CTRL_Pin|GPIO_PIN_11|GPIO_PIN_12, GPIO_PIN_RESET);
 
   /*Configure GPIO pin Output Level */
   HAL_GPIO_WritePin(GPIOC, GPIO_PIN_12, GPIO_PIN_RESET);
 
-  /*Configure GPIO pins : PF0 PF1 */
-  GPIO_InitStruct.Pin = GPIO_PIN_0|GPIO_PIN_1;
+  /*Configure GPIO pins : PF0 FAN_LEFT_CTRL_Pin */
+  GPIO_InitStruct.Pin = GPIO_PIN_0|FAN_LEFT_CTRL_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
@@ -815,8 +801,8 @@ static void MX_GPIO_Init(void)
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
   HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
 
-  /*Configure GPIO pins : PB10 PB11 PB12 */
-  GPIO_InitStruct.Pin = GPIO_PIN_10|GPIO_PIN_11|GPIO_PIN_12;
+  /*Configure GPIO pins : FAN_RIGHT_CTRL_Pin PB11 PB12 */
+  GPIO_InitStruct.Pin = FAN_RIGHT_CTRL_Pin|GPIO_PIN_11|GPIO_PIN_12;
   GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
@@ -1052,9 +1038,9 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 				HAL_IWDG_Refresh(&hiwdg);
 				//Temporary weirdness fix
 				//SET AUX (LEFT FAN) OFF
-				HAL_GPIO_WritePin(GPIOF,GPIO_PIN_1,GPIO_PIN_SET);
+				HAL_GPIO_WritePin(GPIOF,GPIO_PIN_1,GPIO_PIN_RESET);
 				//SET ETC (RIGHT FAN) OFF
-				HAL_GPIO_WritePin(GPIOB,GPIO_PIN_10,GPIO_PIN_SET);
+				HAL_GPIO_WritePin(GPIOB,GPIO_PIN_10,GPIO_PIN_RESET);
 			}
 }
 

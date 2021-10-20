@@ -60,6 +60,10 @@ void Error_Handler(void);
 /* USER CODE END EFP */
 
 /* Private defines -----------------------------------------------------------*/
+#define FAN_LEFT_CTRL_Pin GPIO_PIN_1
+#define FAN_LEFT_CTRL_GPIO_Port GPIOF
+#define FAN_RIGHT_CTRL_Pin GPIO_PIN_10
+#define FAN_RIGHT_CTRL_GPIO_Port GPIOB
 /* USER CODE BEGIN Private defines */
 
 /* USER CODE END Private defines */
