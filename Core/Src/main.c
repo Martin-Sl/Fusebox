@@ -86,9 +86,6 @@ IWDG_HandleTypeDef hiwdg;
 TIM_HandleTypeDef htim2;
 TIM_HandleTypeDef htim3;
 
-FDCAN_TxHeaderTypeDef TxHeaderTre;
-uint8_t TxDataTre[8];
-
 /* USER CODE BEGIN PV */
 int ADC1Conversions=0;
 int ADC2Conversions=0;
@@ -310,7 +307,7 @@ static void MX_ADC1_Init(void)
   */
   sConfig.Channel = ADC_CHANNEL_6;
   sConfig.Rank = ADC_REGULAR_RANK_1;
-  sConfig.SamplingTime = ADC_SAMPLETIME_640CYCLES_5;
+  sConfig.SamplingTime = ADC_SAMPLETIME_247CYCLES_5;
   sConfig.SingleDiff = ADC_SINGLE_ENDED;
   sConfig.OffsetNumber = ADC_OFFSET_NONE;
   sConfig.Offset = 0;
@@ -542,8 +539,8 @@ static void MX_FDCAN1_Init(void)
   hfdcan1.Init.ProtocolException = DISABLE;
   hfdcan1.Init.NominalPrescaler = 2;
   hfdcan1.Init.NominalSyncJumpWidth = 1;
-  hfdcan1.Init.NominalTimeSeg1 = 6;
-  hfdcan1.Init.NominalTimeSeg2 = 1;
+  hfdcan1.Init.NominalTimeSeg1 = 5;
+  hfdcan1.Init.NominalTimeSeg2 = 2;
   hfdcan1.Init.DataPrescaler = 1;
   hfdcan1.Init.DataSyncJumpWidth = 1;
   hfdcan1.Init.DataTimeSeg1 = 6;
@@ -1043,30 +1040,30 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
     	}
 
 
-		TxHeaderTre.Identifier = 0x104;
-		TxHeaderTre.IdType = FDCAN_STANDARD_ID;
-		TxHeaderTre.TxFrameType = FDCAN_DATA_FRAME;
-		TxHeaderTre.DataLength = FDCAN_DLC_BYTES_8;
-		TxHeaderTre.ErrorStateIndicator = FDCAN_ESI_ACTIVE;
-		TxHeaderTre.BitRateSwitch = FDCAN_BRS_OFF;
-		TxHeaderTre.FDFormat = FDCAN_CLASSIC_CAN;
-		TxHeaderTre.TxEventFifoControl = FDCAN_NO_TX_EVENTS;
-		TxHeaderTre.MessageMarker = 0;
+		TxHeader.Identifier = 0x104;
+		TxHeader.IdType = FDCAN_STANDARD_ID;
+		TxHeader.TxFrameType = FDCAN_DATA_FRAME;
+		TxHeader.DataLength = FDCAN_DLC_BYTES_8;
+		TxHeader.ErrorStateIndicator = FDCAN_ESI_ACTIVE;
+		TxHeader.BitRateSwitch = FDCAN_BRS_OFF;
+		TxHeader.FDFormat = FDCAN_CLASSIC_CAN;
+		TxHeader.TxEventFifoControl = FDCAN_NO_TX_EVENTS;
+		TxHeader.MessageMarker = 0;
 	
 		
 
-		TxDataTre[0] = accresAvg[0] & 0xFF;
-		TxDataTre[1] = ((accresAvg[0] >> 8));
-		TxDataTre[2] = accresAvg[1] & 0xFF;
-		TxDataTre[3] = ((accresAvg[1] >> 8));
-		TxDataTre[4] = accresAvg[2] & 0xFF;
-		TxDataTre[5] = ((accresAvg[2] >> 8));
-		TxDataTre[6] = 0;
-		TxDataTre[7] = 0;
+		TxData[0] = accresAvg[0] & 0xFF;
+		TxData[1] = ((accresAvg[0] >> 8));
+		TxData[2] = accresAvg[1] & 0xFF;
+		TxData[3] = ((accresAvg[1] >> 8));
+		TxData[4] = accresAvg[2] & 0xFF;
+		TxData[5] = ((accresAvg[2] >> 8));
+		TxData[6] = 0;
+		TxData[7] = 0;
 
 		
      //Start the Transmission process 
-    if (HAL_FDCAN_AddMessageToTxFifoQ(&hfdcan1, &TxHeaderTre, TxDataTre) != HAL_OK)
+    if (HAL_FDCAN_AddMessageToTxFifoQ(&hfdcan1, &TxHeader, TxData) != HAL_OK)
 		{
 			
 			Error_Handler();
