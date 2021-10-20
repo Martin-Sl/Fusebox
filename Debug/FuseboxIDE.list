@@ -462,7 +462,7 @@ int main(void)
   {
     //tickValue = HAL_GetTick();
 		
-    
+
 		LSM6DSL_AccReadXYZ(accelerationRes);
  800050e:	4822      	ldr	r0, [pc, #136]	; (8000598 <main+0x108>)
  8000510:	f7ff fee4 	bl	80002dc <LSM6DSL_AccReadXYZ>

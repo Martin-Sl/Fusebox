@@ -182,11 +182,12 @@ int main(void)
   {
     //tickValue = HAL_GetTick();
 		
-    
+
 		LSM6DSL_AccReadXYZ(accelerationRes);
 		accresAvg[0] = (int16_t)(dsp_ema_i32(accelerationRes[0], accresAvg[0], DSP_EMA_I32_ALPHA(0.1)));
 		accresAvg[1] = (int16_t)(dsp_ema_i32(accelerationRes[1], accresAvg[1], DSP_EMA_I32_ALPHA(0.1)));
 		accresAvg[2] = (int16_t)(dsp_ema_i32(accelerationRes[2], accresAvg[2], DSP_EMA_I32_ALPHA(0.1)));
+
 		//accelerationMagnitude = accelerationRes[0]*accelerationRes[0] + accelerationRes[1]*accelerationRes[1] + accelerationRes[2]*accelerationRes[2];
 		//lastTickValue = tickValue;
 		//tickValue = HAL_GetTick();
