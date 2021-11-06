@@ -100,7 +100,8 @@ int ADC2Conversions=0;
 int ADC3Conversions=0;
 unsigned char accId=0;
 int16_t accresAvg[] = {0,0,0};
-
+uint32_t fifo0fill = 0;
+uint32_t fifo1fill = 0;
 GPIO_InitTypeDef GPIO_InitStruct;
 
 /* USER CODE END PV */
@@ -194,7 +195,7 @@ int main(void)
 	SENSOR_IO_Write(LSM6DSL_ACC_GYRO_I2C_ADDRESS_LOW, LSM6DSL_ACC_GYRO_CTRL8_XL,0b11001000);
 	//SENSOR_IO_Read(LSM6DSL_ACC_GYRO_I2C_ADDRESS_LOW,	LSM6DSL_ACC_GYRO_OUT_TEMP_L);
 	//SENSOR_IO_Read(LSM6DSL_ACC_GYRO_I2C_ADDRESS_LOW,	LSM6DSL_ACC_GYRO_OUT_TEMP_H);
-
+	HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_3);
 	HAL_TIMEx_PWMN_Start(&htim1, TIM_CHANNEL_3);
 
 	sConfigOCTIM1.OCMode = TIM_OCMODE_PWM1;
@@ -212,31 +213,36 @@ int main(void)
   while (1)
   {
     //tickValue = HAL_GetTick();
-		
+	  //if(HAL_FDCAN_GetRxFifoFillLevel(&hfdcan1, FDCAN_RX_FIFO1) > 0){
+
+	  			HAL_FDCAN_GetRxMessage(&hfdcan1, FDCAN_RX_FIFO0, &CANframeHeader, &CANframeData);
+	  			//fifo1fill++;
+
+	  			if(CANframeHeader.Identifier == 0x11){
+	  				if(CANframeData[1]&0b00001000 == 0b00001000){
+	  					lightStateI++;
+	  					if(lightStateI > 4){
+	  						lightStateI=0;
+	  					}
+	  					sConfigOCTIM1.Pulse=lightStates[lightStateI];
+	  					if (HAL_TIM_PWM_ConfigChannel(&htim1, &sConfigOCTIM1, TIM_CHANNEL_3) != HAL_OK)
+	  				    {
+	  					Error_Handler();
+	  				  }
+	  				}
+
+	  			}
+	  		//}
     
 		LSM6DSL_AccReadXYZ(accelerationRes);
 		accresAvg[0] = (int16_t)(dsp_ema_i32(accelerationRes[0], accresAvg[0], DSP_EMA_I32_ALPHA(0.1)));
 		accresAvg[1] = (int16_t)(dsp_ema_i32(accelerationRes[1], accresAvg[1], DSP_EMA_I32_ALPHA(0.1)));
 		accresAvg[2] = (int16_t)(dsp_ema_i32(accelerationRes[2], accresAvg[2], DSP_EMA_I32_ALPHA(0.1)));
 
-		if(HAL_FDCAN_GetRxFifoFillLevel(&hfdcan1, FDCAN_RX_FIFO1) > 0){
+		fifo0fill=HAL_FDCAN_GetRxFifoFillLevel(&hfdcan1, FDCAN_RX_FIFO0);
+		fifo1fill=HAL_FDCAN_GetRxFifoFillLevel(&hfdcan1, FDCAN_RX_FIFO1);
 
-			HAL_FDCAN_GetRxMessage(&hfdcan1, FDCAN_RX_FIFO1, &CANframeHeader, &CANframeData);
-			if(CANframeHeader.Identifier == 0x11){
-				if(CANframeData[1]&0b00001000 == 0b00001000){
-					lightStateI++;
-					if(lightStateI > 4){
-						lightStateI=0;
-					}
-					sConfigOCTIM1.Pulse=lightStates[lightStateI];
-					if (HAL_TIM_PWM_ConfigChannel(&htim1, &sConfigOCTIM1, TIM_CHANNEL_3) != HAL_OK)
-				    {
-					Error_Handler();
-				  }
-				}
 
-			}
-		}
 		//accelerationMagnitude = accelerationRes[0]*accelerationRes[0] + accelerationRes[1]*accelerationRes[1] + accelerationRes[2]*accelerationRes[2];
 		//lastTickValue = tickValue;
 		//tickValue = HAL_GetTick();
@@ -700,6 +706,7 @@ static void MX_TIM1_Init(void)
 
   /* USER CODE END TIM1_Init 0 */
 
+  TIM_ClockConfigTypeDef sClockSourceConfig = {0};
   TIM_MasterConfigTypeDef sMasterConfig = {0};
   TIM_OC_InitTypeDef sConfigOC = {0};
   TIM_BreakDeadTimeConfigTypeDef sBreakDeadTimeConfig = {0};
@@ -708,12 +715,21 @@ static void MX_TIM1_Init(void)
 
   /* USER CODE END TIM1_Init 1 */
   htim1.Instance = TIM1;
-  htim1.Init.Prescaler = 0;
+  htim1.Init.Prescaler = 20;
   htim1.Init.CounterMode = TIM_COUNTERMODE_UP;
   htim1.Init.Period = 1000;
-  htim1.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
+  htim1.Init.ClockDivision = TIM_CLOCKDIVISION_DIV4;
   htim1.Init.RepetitionCounter = 0;
-  htim1.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
+  htim1.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_ENABLE;
+  if (HAL_TIM_Base_Init(&htim1) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  sClockSourceConfig.ClockSource = TIM_CLOCKSOURCE_INTERNAL;
+  if (HAL_TIM_ConfigClockSource(&htim1, &sClockSourceConfig) != HAL_OK)
+  {
+    Error_Handler();
+  }
   if (HAL_TIM_PWM_Init(&htim1) != HAL_OK)
   {
     Error_Handler();
@@ -726,7 +742,7 @@ static void MX_TIM1_Init(void)
     Error_Handler();
   }
   sConfigOC.OCMode = TIM_OCMODE_PWM1;
-  sConfigOC.Pulse = 99;
+  sConfigOC.Pulse = 997;
   sConfigOC.OCPolarity = TIM_OCPOLARITY_HIGH;
   sConfigOC.OCNPolarity = TIM_OCNPOLARITY_HIGH;
   sConfigOC.OCFastMode = TIM_OCFAST_DISABLE;
@@ -944,8 +960,8 @@ void FDCAN_Config(void)
   sFilterConfig.FilterIndex = 0;
   sFilterConfig.FilterType = FDCAN_FILTER_DISABLE;
   sFilterConfig.FilterConfig = FDCAN_FILTER_TO_RXFIFO0;
-  sFilterConfig.FilterID1 = 0x11<<5;
-  sFilterConfig.FilterID2 = 0x11<<5;
+  sFilterConfig.FilterID1 = 0x00;
+  sFilterConfig.FilterID2 = 0x00;
   if (HAL_FDCAN_ConfigFilter(&hfdcan1, &sFilterConfig) != HAL_OK)
   {
     Error_Handler();

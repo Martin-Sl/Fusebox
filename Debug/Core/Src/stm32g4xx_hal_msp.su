@@ -5,8 +5,8 @@ stm32g4xx_hal_msp.c:350:6:HAL_FDCAN_MspInit	48	static
 stm32g4xx_hal_msp.c:386:6:HAL_FDCAN_MspDeInit	16	static
 stm32g4xx_hal_msp.c:415:6:HAL_I2C_MspInit	48	static
 stm32g4xx_hal_msp.c:451:6:HAL_I2C_MspDeInit	16	static
-stm32g4xx_hal_msp.c:482:6:HAL_TIM_PWM_MspInit	24	static
-stm32g4xx_hal_msp.c:515:6:HAL_TIM_Base_MspInit	24	static
+stm32g4xx_hal_msp.c:482:6:HAL_TIM_Base_MspInit	24	static
+stm32g4xx_hal_msp.c:518:6:HAL_TIM_PWM_MspInit	24	static
 stm32g4xx_hal_msp.c:534:6:HAL_TIM_MspPostInit	48	static
-stm32g4xx_hal_msp.c:586:6:HAL_TIM_PWM_MspDeInit	16	static
-stm32g4xx_hal_msp.c:619:6:HAL_TIM_Base_MspDeInit	16	static
+stm32g4xx_hal_msp.c:586:6:HAL_TIM_Base_MspDeInit	16	static
+stm32g4xx_hal_msp.c:622:6:HAL_TIM_PWM_MspDeInit	16	static
